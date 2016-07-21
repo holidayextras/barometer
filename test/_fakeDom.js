@@ -13,7 +13,7 @@ window.trigger = function (evt) {
 }
 
 window.readyState = 'loading'
-window.history = { }
+if (!window.history) window.history = { }
 
 if (!window.location) {
   window.location = {

@@ -7851,7 +7851,7 @@ window.trigger = function (evt) {
 }
 
 window.readyState = 'loading'
-window.history = { }
+if (!window.history) window.history = { }
 
 if (!window.location) {
   window.location = {
@@ -8203,7 +8203,6 @@ describe('Testing urlSanitiser', function () {
 },{"../lib/urlSanitiser.js":6,"./_fakeDom.js":41,"assert":8}],48:[function(require,module,exports){
 /* global window */
 'use strict'
-var assert = require('assert')
 var sinon = require('sinon')
 require('./_fakeDom.js')
 require('../lib/xhrStats.js')
@@ -8231,10 +8230,8 @@ describe('Testing xhrStats', function () {
     sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.HEADERS_RECEIVED', 0)
     sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.LOADING', 0)
     sinon.assert.calledWith(transport.gauge, 'xhr.size.POST.www_example_com/foo.200', 11)
-    assert.equal(transport.gauge.callCount, 6)
     sinon.assert.calledWith(transport.count, 'xhr.responses.POST.www_example_com/foo.200')
-    assert.equal(transport.count.callCount, 1)
   })
 })
 
-},{"../lib/transport.js":5,"../lib/xhrStats.js":7,"./_fakeDom.js":41,"assert":8,"sinon":14}]},{},[41,42,43,44,45,46,47,48]);
+},{"../lib/transport.js":5,"../lib/xhrStats.js":7,"./_fakeDom.js":41,"sinon":14}]},{},[41,42,43,44,45,46,47,48]);
