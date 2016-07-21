@@ -1,0 +1,15 @@
+language: node_js
+node_js:
+  - "4.4.7"
+script: "npm run $TEST_STEP"
+addons:
+  firefox: "latest"
+env:
+  matrix:
+    - TEST_STEP=lint
+    - TEST_STEP=test
+notifications:
+  email: false
+before_script:
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start

@@ -1,0 +1,53 @@
+{
+  "name": "barometer",
+  "version": "1.0.0",
+  "description": "Lightweight module to extract performance metrics from a webpage",
+  "main": "lib/barometer.js",
+  "scripts": {
+    "build": "webpack",
+    "build:test": "browserify test/_fakeDom.js test/*.js -o dist/barometer-test.js",
+    "coverage": "mocha --require blanket --reporter html-cov ./test/test*.js > coverage.html",
+    "lint": "eslint ./lib/*.js ./test/*.js",
+    "pretest:karma": "npm run build:test",
+    "pretest": "npm run build:test",
+    "test": "npm run test:unit && npm run test:karma",
+    "test:karma": "karma start ./karma.local.conf.js",
+    "test:unit": "mocha test/test*.js"
+  },
+  "author": "Oliver Rumbelow",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/holidayextras/barometer"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "blanket": "^1.1.9",
+    "browserify": "^13.0.1",
+    "eslint": "^3.1.1",
+    "eslint-config-standard": "^5.3.5",
+    "eslint-plugin-promise": "^2.0.0",
+    "eslint-plugin-standard": "^2.0.0",
+    "karma": "1.1.0",
+    "karma-chrome-launcher": "1.0.1",
+    "karma-firefox-launcher": "1.0.0",
+    "karma-mocha": "1.1.1",
+    "karma-phantomjs-launcher": "1.0.1",
+    "karma-sauce-launcher": "1.0.0",
+    "karma-spec-reporter": "0.0.26",
+    "mocha": "^2.5.3",
+    "sinon": "^1.7.3",
+    "webpack": "^1.13.1",
+    "webpack-jscrush": "0.0.5"
+  },
+  "config": {
+    "blanket": {
+      "pattern": ".js",
+      "data-cover-never": [
+        "node_modules",
+        "test",
+        "example"
+      ]
+    }
+  }
+}
