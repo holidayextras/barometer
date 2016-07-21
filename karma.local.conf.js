@@ -4,8 +4,8 @@ module.exports = function (config) {
   config.set({
     frameworks: [ 'mocha' ],
     files: [
-      'dist/barometer.min.js',
-      'dist/barometer-test.js'
+      'dist/barometer-test.js',
+      'dist/barometer.min.js'
     ],
     reporters: [ 'spec' ],
     plugins: [ 'karma-mocha', 'karma-firefox-launcher', 'karma-spec-reporter' ],
