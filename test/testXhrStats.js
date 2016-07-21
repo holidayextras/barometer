@@ -1,6 +1,5 @@
 /* global window */
 'use strict'
-var assert = require('assert')
 var sinon = require('sinon')
 require('./_fakeDom.js')
 require('../lib/xhrStats.js')
@@ -28,8 +27,6 @@ describe('Testing xhrStats', function () {
     sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.HEADERS_RECEIVED', 0)
     sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.LOADING', 0)
     sinon.assert.calledWith(transport.gauge, 'xhr.size.POST.www_example_com/foo.200', 11)
-    assert.equal(transport.gauge.callCount, 6)
     sinon.assert.calledWith(transport.count, 'xhr.responses.POST.www_example_com/foo.200')
-    assert.equal(transport.count.callCount, 1)
   })
 })
