@@ -680,224 +680,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":40}],9:[function(require,module,exports){
-(function (global){
-((typeof define === "function" && define.amd && function (m) {
-    define("formatio", ["samsam"], m);
-}) || (typeof module === "object" && function (m) {
-    module.exports = m(require("samsam"));
-}) || function (m) { this.formatio = m(this.samsam); }
-)(function (samsam) {
-    "use strict";
-
-    var formatio = {
-        excludeConstructors: ["Object", /^.$/],
-        quoteStrings: true,
-        limitChildrenCount: 0
-    };
-
-    var hasOwn = Object.prototype.hasOwnProperty;
-
-    var specialObjects = [];
-    if (typeof global !== "undefined") {
-        specialObjects.push({ object: global, value: "[object global]" });
-    }
-    if (typeof document !== "undefined") {
-        specialObjects.push({
-            object: document,
-            value: "[object HTMLDocument]"
-        });
-    }
-    if (typeof window !== "undefined") {
-        specialObjects.push({ object: window, value: "[object Window]" });
-    }
-
-    function functionName(func) {
-        if (!func) { return ""; }
-        if (func.displayName) { return func.displayName; }
-        if (func.name) { return func.name; }
-        var matches = func.toString().match(/function\s+([^\(]+)/m);
-        return (matches && matches[1]) || "";
-    }
-
-    function constructorName(f, object) {
-        var name = functionName(object && object.constructor);
-        var excludes = f.excludeConstructors ||
-                formatio.excludeConstructors || [];
-
-        var i, l;
-        for (i = 0, l = excludes.length; i < l; ++i) {
-            if (typeof excludes[i] === "string" && excludes[i] === name) {
-                return "";
-            } else if (excludes[i].test && excludes[i].test(name)) {
-                return "";
-            }
-        }
-
-        return name;
-    }
-
-    function isCircular(object, objects) {
-        if (typeof object !== "object") { return false; }
-        var i, l;
-        for (i = 0, l = objects.length; i < l; ++i) {
-            if (objects[i] === object) { return true; }
-        }
-        return false;
-    }
-
-    function ascii(f, object, processed, indent) {
-        if (typeof object === "string") {
-            var qs = f.quoteStrings;
-            var quote = typeof qs !== "boolean" || qs;
-            return processed || quote ? '"' + object + '"' : object;
-        }
-
-        if (typeof object === "function" && !(object instanceof RegExp)) {
-            return ascii.func(object);
-        }
-
-        processed = processed || [];
-
-        if (isCircular(object, processed)) { return "[Circular]"; }
-
-        if (Object.prototype.toString.call(object) === "[object Array]") {
-            return ascii.array.call(f, object, processed);
-        }
-
-        if (!object) { return String((1/object) === -Infinity ? "-0" : object); }
-        if (samsam.isElement(object)) { return ascii.element(object); }
-
-        if (typeof object.toString === "function" &&
-                object.toString !== Object.prototype.toString) {
-            return object.toString();
-        }
-
-        var i, l;
-        for (i = 0, l = specialObjects.length; i < l; i++) {
-            if (object === specialObjects[i].object) {
-                return specialObjects[i].value;
-            }
-        }
-
-        return ascii.object.call(f, object, processed, indent);
-    }
-
-    ascii.func = function (func) {
-        return "function " + functionName(func) + "() {}";
-    };
-
-    ascii.array = function (array, processed) {
-        processed = processed || [];
-        processed.push(array);
-        var pieces = [];
-        var i, l;
-        l = (this.limitChildrenCount > 0) ? 
-            Math.min(this.limitChildrenCount, array.length) : array.length;
-
-        for (i = 0; i < l; ++i) {
-            pieces.push(ascii(this, array[i], processed));
-        }
-
-        if(l < array.length)
-            pieces.push("[... " + (array.length - l) + " more elements]");
-
-        return "[" + pieces.join(", ") + "]";
-    };
-
-    ascii.object = function (object, processed, indent) {
-        processed = processed || [];
-        processed.push(object);
-        indent = indent || 0;
-        var pieces = [], properties = samsam.keys(object).sort();
-        var length = 3;
-        var prop, str, obj, i, k, l;
-        l = (this.limitChildrenCount > 0) ? 
-            Math.min(this.limitChildrenCount, properties.length) : properties.length;
-
-        for (i = 0; i < l; ++i) {
-            prop = properties[i];
-            obj = object[prop];
-
-            if (isCircular(obj, processed)) {
-                str = "[Circular]";
-            } else {
-                str = ascii(this, obj, processed, indent + 2);
-            }
-
-            str = (/\s/.test(prop) ? '"' + prop + '"' : prop) + ": " + str;
-            length += str.length;
-            pieces.push(str);
-        }
-
-        var cons = constructorName(this, object);
-        var prefix = cons ? "[" + cons + "] " : "";
-        var is = "";
-        for (i = 0, k = indent; i < k; ++i) { is += " "; }
-
-        if(l < properties.length)
-            pieces.push("[... " + (properties.length - l) + " more elements]");
-
-        if (length + indent > 80) {
-            return prefix + "{\n  " + is + pieces.join(",\n  " + is) + "\n" +
-                is + "}";
-        }
-        return prefix + "{ " + pieces.join(", ") + " }";
-    };
-
-    ascii.element = function (element) {
-        var tagName = element.tagName.toLowerCase();
-        var attrs = element.attributes, attr, pairs = [], attrName, i, l, val;
-
-        for (i = 0, l = attrs.length; i < l; ++i) {
-            attr = attrs.item(i);
-            attrName = attr.nodeName.toLowerCase().replace("html:", "");
-            val = attr.nodeValue;
-            if (attrName !== "contenteditable" || val !== "inherit") {
-                if (!!val) { pairs.push(attrName + "=\"" + val + "\""); }
-            }
-        }
-
-        var formatted = "<" + tagName + (pairs.length > 0 ? " " : "");
-        var content = element.innerHTML;
-
-        if (content.length > 20) {
-            content = content.substr(0, 20) + "[...]";
-        }
-
-        var res = formatted + pairs.join(" ") + ">" + content +
-                "</" + tagName + ">";
-
-        return res.replace(/ contentEditable="inherit"/, "");
-    };
-
-    function Formatio(options) {
-        for (var opt in options) {
-            this[opt] = options[opt];
-        }
-    }
-
-    Formatio.prototype = {
-        functionName: functionName,
-
-        configure: function (options) {
-            return new Formatio(options);
-        },
-
-        constructorName: function (object) {
-            return constructorName(this, object);
-        },
-
-        ascii: function (object, processed, indent) {
-            return ascii(this, object, processed, indent);
-        }
-    };
-
-    return Formatio.prototype;
-});
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"samsam":13}],10:[function(require,module,exports){
+},{"util/":12}],9:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -922,530 +705,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],11:[function(require,module,exports){
-(function (global){
-/*global global, window*/
-/**
- * @author Christian Johansen (christian@cjohansen.no) and contributors
- * @license BSD
- *
- * Copyright (c) 2010-2014 Christian Johansen
- */
-
-(function (global) {
-    "use strict";
-
-    // Make properties writable in IE, as per
-    // http://www.adequatelygood.com/Replacing-setTimeout-Globally.html
-    // JSLint being anal
-    var glbl = global;
-
-    global.setTimeout = glbl.setTimeout;
-    global.clearTimeout = glbl.clearTimeout;
-    global.setInterval = glbl.setInterval;
-    global.clearInterval = glbl.clearInterval;
-    global.Date = glbl.Date;
-
-    // setImmediate is not a standard function
-    // avoid adding the prop to the window object if not present
-    if('setImmediate' in global) {
-        global.setImmediate = glbl.setImmediate;
-        global.clearImmediate = glbl.clearImmediate;
-    }
-
-    // node expects setTimeout/setInterval to return a fn object w/ .ref()/.unref()
-    // browsers, a number.
-    // see https://github.com/cjohansen/Sinon.JS/pull/436
-
-    var NOOP = function () { return undefined; };
-    var timeoutResult = setTimeout(NOOP, 0);
-    var addTimerReturnsObject = typeof timeoutResult === "object";
-    clearTimeout(timeoutResult);
-
-    var NativeDate = Date;
-    var uniqueTimerId = 1;
-
-    /**
-     * Parse strings like "01:10:00" (meaning 1 hour, 10 minutes, 0 seconds) into
-     * number of milliseconds. This is used to support human-readable strings passed
-     * to clock.tick()
-     */
-    function parseTime(str) {
-        if (!str) {
-            return 0;
-        }
-
-        var strings = str.split(":");
-        var l = strings.length, i = l;
-        var ms = 0, parsed;
-
-        if (l > 3 || !/^(\d\d:){0,2}\d\d?$/.test(str)) {
-            throw new Error("tick only understands numbers and 'h:m:s'");
-        }
-
-        while (i--) {
-            parsed = parseInt(strings[i], 10);
-
-            if (parsed >= 60) {
-                throw new Error("Invalid time " + str);
-            }
-
-            ms += parsed * Math.pow(60, (l - i - 1));
-        }
-
-        return ms * 1000;
-    }
-
-    /**
-     * Used to grok the `now` parameter to createClock.
-     */
-    function getEpoch(epoch) {
-        if (!epoch) { return 0; }
-        if (typeof epoch.getTime === "function") { return epoch.getTime(); }
-        if (typeof epoch === "number") { return epoch; }
-        throw new TypeError("now should be milliseconds since UNIX epoch");
-    }
-
-    function inRange(from, to, timer) {
-        return timer && timer.callAt >= from && timer.callAt <= to;
-    }
-
-    function mirrorDateProperties(target, source) {
-        var prop;
-        for (prop in source) {
-            if (source.hasOwnProperty(prop)) {
-                target[prop] = source[prop];
-            }
-        }
-
-        // set special now implementation
-        if (source.now) {
-            target.now = function now() {
-                return target.clock.now;
-            };
-        } else {
-            delete target.now;
-        }
-
-        // set special toSource implementation
-        if (source.toSource) {
-            target.toSource = function toSource() {
-                return source.toSource();
-            };
-        } else {
-            delete target.toSource;
-        }
-
-        // set special toString implementation
-        target.toString = function toString() {
-            return source.toString();
-        };
-
-        target.prototype = source.prototype;
-        target.parse = source.parse;
-        target.UTC = source.UTC;
-        target.prototype.toUTCString = source.prototype.toUTCString;
-
-        return target;
-    }
-
-    function createDate() {
-        function ClockDate(year, month, date, hour, minute, second, ms) {
-            // Defensive and verbose to avoid potential harm in passing
-            // explicit undefined when user does not pass argument
-            switch (arguments.length) {
-            case 0:
-                return new NativeDate(ClockDate.clock.now);
-            case 1:
-                return new NativeDate(year);
-            case 2:
-                return new NativeDate(year, month);
-            case 3:
-                return new NativeDate(year, month, date);
-            case 4:
-                return new NativeDate(year, month, date, hour);
-            case 5:
-                return new NativeDate(year, month, date, hour, minute);
-            case 6:
-                return new NativeDate(year, month, date, hour, minute, second);
-            default:
-                return new NativeDate(year, month, date, hour, minute, second, ms);
-            }
-        }
-
-        return mirrorDateProperties(ClockDate, NativeDate);
-    }
-
-    function addTimer(clock, timer) {
-        if (timer.func === undefined) {
-            throw new Error("Callback must be provided to timer calls");
-        }
-
-        if (!clock.timers) {
-            clock.timers = {};
-        }
-
-        timer.id = uniqueTimerId++;
-        timer.createdAt = clock.now;
-        timer.callAt = clock.now + (timer.delay || (clock.duringTick ? 1 : 0));
-
-        clock.timers[timer.id] = timer;
-
-        if (addTimerReturnsObject) {
-            return {
-                id: timer.id,
-                ref: NOOP,
-                unref: NOOP
-            };
-        }
-
-        return timer.id;
-    }
-
-
-    function compareTimers(a, b) {
-        // Sort first by absolute timing
-        if (a.callAt < b.callAt) {
-            return -1;
-        }
-        if (a.callAt > b.callAt) {
-            return 1;
-        }
-
-        // Sort next by immediate, immediate timers take precedence
-        if (a.immediate && !b.immediate) {
-            return -1;
-        }
-        if (!a.immediate && b.immediate) {
-            return 1;
-        }
-
-        // Sort next by creation time, earlier-created timers take precedence
-        if (a.createdAt < b.createdAt) {
-            return -1;
-        }
-        if (a.createdAt > b.createdAt) {
-            return 1;
-        }
-
-        // Sort next by id, lower-id timers take precedence
-        if (a.id < b.id) {
-            return -1;
-        }
-        if (a.id > b.id) {
-            return 1;
-        }
-
-        // As timer ids are unique, no fallback `0` is necessary
-    }
-
-    function firstTimerInRange(clock, from, to) {
-        var timers = clock.timers,
-            timer = null,
-            id,
-            isInRange;
-
-        for (id in timers) {
-            if (timers.hasOwnProperty(id)) {
-                isInRange = inRange(from, to, timers[id]);
-
-                if (isInRange && (!timer || compareTimers(timer, timers[id]) === 1)) {
-                    timer = timers[id];
-                }
-            }
-        }
-
-        return timer;
-    }
-
-    function callTimer(clock, timer) {
-        var exception;
-
-        if (typeof timer.interval === "number") {
-            clock.timers[timer.id].callAt += timer.interval;
-        } else {
-            delete clock.timers[timer.id];
-        }
-
-        try {
-            if (typeof timer.func === "function") {
-                timer.func.apply(null, timer.args);
-            } else {
-                eval(timer.func);
-            }
-        } catch (e) {
-            exception = e;
-        }
-
-        if (!clock.timers[timer.id]) {
-            if (exception) {
-                throw exception;
-            }
-            return;
-        }
-
-        if (exception) {
-            throw exception;
-        }
-    }
-
-    function timerType(timer) {
-        if (timer.immediate) {
-            return "Immediate";
-        } else if (typeof timer.interval !== "undefined") {
-            return "Interval";
-        } else {
-            return "Timeout";
-        }
-    }
-
-    function clearTimer(clock, timerId, ttype) {
-        if (!timerId) {
-            // null appears to be allowed in most browsers, and appears to be
-            // relied upon by some libraries, like Bootstrap carousel
-            return;
-        }
-
-        if (!clock.timers) {
-            clock.timers = [];
-        }
-
-        // in Node, timerId is an object with .ref()/.unref(), and
-        // its .id field is the actual timer id.
-        if (typeof timerId === "object") {
-            timerId = timerId.id;
-        }
-
-        if (clock.timers.hasOwnProperty(timerId)) {
-            // check that the ID matches a timer of the correct type
-            var timer = clock.timers[timerId];
-            if (timerType(timer) === ttype) {
-                delete clock.timers[timerId];
-            } else {
-				throw new Error("Cannot clear timer: timer created with set" + ttype + "() but cleared with clear" + timerType(timer) + "()");
-			}
-        }
-    }
-
-    function uninstall(clock, target) {
-        var method,
-            i,
-            l;
-
-        for (i = 0, l = clock.methods.length; i < l; i++) {
-            method = clock.methods[i];
-
-            if (target[method].hadOwnProperty) {
-                target[method] = clock["_" + method];
-            } else {
-                try {
-                    delete target[method];
-                } catch (ignore) {}
-            }
-        }
-
-        // Prevent multiple executions which will completely remove these props
-        clock.methods = [];
-    }
-
-    function hijackMethod(target, method, clock) {
-        var prop;
-
-        clock[method].hadOwnProperty = Object.prototype.hasOwnProperty.call(target, method);
-        clock["_" + method] = target[method];
-
-        if (method === "Date") {
-            var date = mirrorDateProperties(clock[method], target[method]);
-            target[method] = date;
-        } else {
-            target[method] = function () {
-                return clock[method].apply(clock, arguments);
-            };
-
-            for (prop in clock[method]) {
-                if (clock[method].hasOwnProperty(prop)) {
-                    target[method][prop] = clock[method][prop];
-                }
-            }
-        }
-
-        target[method].clock = clock;
-    }
-
-    var timers = {
-        setTimeout: setTimeout,
-        clearTimeout: clearTimeout,
-        setImmediate: global.setImmediate,
-        clearImmediate: global.clearImmediate,
-        setInterval: setInterval,
-        clearInterval: clearInterval,
-        Date: Date
-    };
-
-    var keys = Object.keys || function (obj) {
-        var ks = [],
-            key;
-
-        for (key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                ks.push(key);
-            }
-        }
-
-        return ks;
-    };
-
-    exports.timers = timers;
-
-    function createClock(now) {
-        var clock = {
-            now: getEpoch(now),
-            timeouts: {},
-            Date: createDate()
-        };
-
-        clock.Date.clock = clock;
-
-        clock.setTimeout = function setTimeout(func, timeout) {
-            return addTimer(clock, {
-                func: func,
-                args: Array.prototype.slice.call(arguments, 2),
-                delay: timeout
-            });
-        };
-
-        clock.clearTimeout = function clearTimeout(timerId) {
-            return clearTimer(clock, timerId, "Timeout");
-        };
-
-        clock.setInterval = function setInterval(func, timeout) {
-            return addTimer(clock, {
-                func: func,
-                args: Array.prototype.slice.call(arguments, 2),
-                delay: timeout,
-                interval: timeout
-            });
-        };
-
-        clock.clearInterval = function clearInterval(timerId) {
-            return clearTimer(clock, timerId, "Interval");
-        };
-
-        clock.setImmediate = function setImmediate(func) {
-            return addTimer(clock, {
-                func: func,
-                args: Array.prototype.slice.call(arguments, 1),
-                immediate: true
-            });
-        };
-
-        clock.clearImmediate = function clearImmediate(timerId) {
-            return clearTimer(clock, timerId, "Immediate");
-        };
-
-        clock.tick = function tick(ms) {
-            ms = typeof ms === "number" ? ms : parseTime(ms);
-            var tickFrom = clock.now, tickTo = clock.now + ms, previous = clock.now;
-            var timer = firstTimerInRange(clock, tickFrom, tickTo);
-            var oldNow;
-
-            clock.duringTick = true;
-
-            var firstException;
-            while (timer && tickFrom <= tickTo) {
-                if (clock.timers[timer.id]) {
-                    tickFrom = clock.now = timer.callAt;
-                    try {
-                        oldNow = clock.now;
-                        callTimer(clock, timer);
-                        // compensate for any setSystemTime() call during timer callback
-                        if (oldNow !== clock.now) {
-                            tickFrom += clock.now - oldNow;
-                            tickTo += clock.now - oldNow;
-                            previous += clock.now - oldNow;
-                        }
-                    } catch (e) {
-                        firstException = firstException || e;
-                    }
-                }
-
-                timer = firstTimerInRange(clock, previous, tickTo);
-                previous = tickFrom;
-            }
-
-            clock.duringTick = false;
-            clock.now = tickTo;
-
-            if (firstException) {
-                throw firstException;
-            }
-
-            return clock.now;
-        };
-
-        clock.reset = function reset() {
-            clock.timers = {};
-        };
-
-        clock.setSystemTime = function setSystemTime(now) {
-            // determine time difference
-            var newNow = getEpoch(now);
-            var difference = newNow - clock.now;
-
-            // update 'system clock'
-            clock.now = newNow;
-
-            // update timers and intervals to keep them stable
-            for (var id in clock.timers) {
-                if (clock.timers.hasOwnProperty(id)) {
-                    var timer = clock.timers[id];
-                    timer.createdAt += difference;
-                    timer.callAt += difference;
-                }
-            }
-        };
-
-        return clock;
-    }
-    exports.createClock = createClock;
-
-    exports.install = function install(target, now, toFake) {
-        var i,
-            l;
-
-        if (typeof target === "number") {
-            toFake = now;
-            now = target;
-            target = null;
-        }
-
-        if (!target) {
-            target = global;
-        }
-
-        var clock = createClock(now);
-
-        clock.uninstall = function () {
-            uninstall(clock, target);
-        };
-
-        clock.methods = toFake || [];
-
-        if (clock.methods.length === 0) {
-            clock.methods = keys(timers);
-        }
-
-        for (i = 0, l = clock.methods.length; i < l; i++) {
-            hijackMethod(target, clock.methods[i], clock);
-        }
-
-        return clock;
-    };
-
-}(global || this));
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],12:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1566,408 +826,604 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],13:[function(require,module,exports){
-((typeof define === "function" && define.amd && function (m) { define("samsam", m); }) ||
- (typeof module === "object" &&
-      function (m) { module.exports = m(); }) || // Node
- function (m) { this.samsam = m(); } // Browser globals
-)(function () {
-    var o = Object.prototype;
-    var div = typeof document !== "undefined" && document.createElement("div");
+},{}],11:[function(require,module,exports){
+module.exports = function isBuffer(arg) {
+  return arg && typeof arg === 'object'
+    && typeof arg.copy === 'function'
+    && typeof arg.fill === 'function'
+    && typeof arg.readUInt8 === 'function';
+}
+},{}],12:[function(require,module,exports){
+(function (process,global){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-    function isNaN(value) {
-        // Unlike global isNaN, this avoids type coercion
-        // typeof check avoids IE host object issues, hat tip to
-        // lodash
-        var val = value; // JsLint thinks value !== value is "weird"
-        return typeof value === "number" && value !== val;
+var formatRegExp = /%[sdj%]/g;
+exports.format = function(f) {
+  if (!isString(f)) {
+    var objects = [];
+    for (var i = 0; i < arguments.length; i++) {
+      objects.push(inspect(arguments[i]));
     }
+    return objects.join(' ');
+  }
 
-    function getClass(value) {
-        // Returns the internal [[Class]] by calling Object.prototype.toString
-        // with the provided value as this. Return value is a string, naming the
-        // internal class, e.g. "Array"
-        return o.toString.call(value).split(/[ \]]/)[1];
-    }
-
-    /**
-     * @name samsam.isArguments
-     * @param Object object
-     *
-     * Returns ``true`` if ``object`` is an ``arguments`` object,
-     * ``false`` otherwise.
-     */
-    function isArguments(object) {
-        if (getClass(object) === 'Arguments') { return true; }
-        if (typeof object !== "object" || typeof object.length !== "number" ||
-                getClass(object) === "Array") {
-            return false;
-        }
-        if (typeof object.callee == "function") { return true; }
+  var i = 1;
+  var args = arguments;
+  var len = args.length;
+  var str = String(f).replace(formatRegExp, function(x) {
+    if (x === '%%') return '%';
+    if (i >= len) return x;
+    switch (x) {
+      case '%s': return String(args[i++]);
+      case '%d': return Number(args[i++]);
+      case '%j':
         try {
-            object[object.length] = 6;
-            delete object[object.length];
-        } catch (e) {
-            return true;
+          return JSON.stringify(args[i++]);
+        } catch (_) {
+          return '[Circular]';
         }
-        return false;
+      default:
+        return x;
     }
-
-    /**
-     * @name samsam.isElement
-     * @param Object object
-     *
-     * Returns ``true`` if ``object`` is a DOM element node. Unlike
-     * Underscore.js/lodash, this function will return ``false`` if ``object``
-     * is an *element-like* object, i.e. a regular object with a ``nodeType``
-     * property that holds the value ``1``.
-     */
-    function isElement(object) {
-        if (!object || object.nodeType !== 1 || !div) { return false; }
-        try {
-            object.appendChild(div);
-            object.removeChild(div);
-        } catch (e) {
-            return false;
-        }
-        return true;
+  });
+  for (var x = args[i]; i < len; x = args[++i]) {
+    if (isNull(x) || !isObject(x)) {
+      str += ' ' + x;
+    } else {
+      str += ' ' + inspect(x);
     }
-
-    /**
-     * @name samsam.keys
-     * @param Object object
-     *
-     * Return an array of own property names.
-     */
-    function keys(object) {
-        var ks = [], prop;
-        for (prop in object) {
-            if (o.hasOwnProperty.call(object, prop)) { ks.push(prop); }
-        }
-        return ks;
-    }
-
-    /**
-     * @name samsam.isDate
-     * @param Object value
-     *
-     * Returns true if the object is a ``Date``, or *date-like*. Duck typing
-     * of date objects work by checking that the object has a ``getTime``
-     * function whose return value equals the return value from the object's
-     * ``valueOf``.
-     */
-    function isDate(value) {
-        return typeof value.getTime == "function" &&
-            value.getTime() == value.valueOf();
-    }
-
-    /**
-     * @name samsam.isNegZero
-     * @param Object value
-     *
-     * Returns ``true`` if ``value`` is ``-0``.
-     */
-    function isNegZero(value) {
-        return value === 0 && 1 / value === -Infinity;
-    }
-
-    /**
-     * @name samsam.equal
-     * @param Object obj1
-     * @param Object obj2
-     *
-     * Returns ``true`` if two objects are strictly equal. Compared to
-     * ``===`` there are two exceptions:
-     *
-     *   - NaN is considered equal to NaN
-     *   - -0 and +0 are not considered equal
-     */
-    function identical(obj1, obj2) {
-        if (obj1 === obj2 || (isNaN(obj1) && isNaN(obj2))) {
-            return obj1 !== 0 || isNegZero(obj1) === isNegZero(obj2);
-        }
-    }
+  }
+  return str;
+};
 
 
-    /**
-     * @name samsam.deepEqual
-     * @param Object obj1
-     * @param Object obj2
-     *
-     * Deep equal comparison. Two values are "deep equal" if:
-     *
-     *   - They are equal, according to samsam.identical
-     *   - They are both date objects representing the same time
-     *   - They are both arrays containing elements that are all deepEqual
-     *   - They are objects with the same set of properties, and each property
-     *     in ``obj1`` is deepEqual to the corresponding property in ``obj2``
-     *
-     * Supports cyclic objects.
-     */
-    function deepEqualCyclic(obj1, obj2) {
-
-        // used for cyclic comparison
-        // contain already visited objects
-        var objects1 = [],
-            objects2 = [],
-        // contain pathes (position in the object structure)
-        // of the already visited objects
-        // indexes same as in objects arrays
-            paths1 = [],
-            paths2 = [],
-        // contains combinations of already compared objects
-        // in the manner: { "$1['ref']$2['ref']": true }
-            compared = {};
-
-        /**
-         * used to check, if the value of a property is an object
-         * (cyclic logic is only needed for objects)
-         * only needed for cyclic logic
-         */
-        function isObject(value) {
-
-            if (typeof value === 'object' && value !== null &&
-                    !(value instanceof Boolean) &&
-                    !(value instanceof Date)    &&
-                    !(value instanceof Number)  &&
-                    !(value instanceof RegExp)  &&
-                    !(value instanceof String)) {
-
-                return true;
-            }
-
-            return false;
-        }
-
-        /**
-         * returns the index of the given object in the
-         * given objects array, -1 if not contained
-         * only needed for cyclic logic
-         */
-        function getIndex(objects, obj) {
-
-            var i;
-            for (i = 0; i < objects.length; i++) {
-                if (objects[i] === obj) {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-
-        // does the recursion for the deep equal check
-        return (function deepEqual(obj1, obj2, path1, path2) {
-            var type1 = typeof obj1;
-            var type2 = typeof obj2;
-
-            // == null also matches undefined
-            if (obj1 === obj2 ||
-                    isNaN(obj1) || isNaN(obj2) ||
-                    obj1 == null || obj2 == null ||
-                    type1 !== "object" || type2 !== "object") {
-
-                return identical(obj1, obj2);
-            }
-
-            // Elements are only equal if identical(expected, actual)
-            if (isElement(obj1) || isElement(obj2)) { return false; }
-
-            var isDate1 = isDate(obj1), isDate2 = isDate(obj2);
-            if (isDate1 || isDate2) {
-                if (!isDate1 || !isDate2 || obj1.getTime() !== obj2.getTime()) {
-                    return false;
-                }
-            }
-
-            if (obj1 instanceof RegExp && obj2 instanceof RegExp) {
-                if (obj1.toString() !== obj2.toString()) { return false; }
-            }
-
-            var class1 = getClass(obj1);
-            var class2 = getClass(obj2);
-            var keys1 = keys(obj1);
-            var keys2 = keys(obj2);
-
-            if (isArguments(obj1) || isArguments(obj2)) {
-                if (obj1.length !== obj2.length) { return false; }
-            } else {
-                if (type1 !== type2 || class1 !== class2 ||
-                        keys1.length !== keys2.length) {
-                    return false;
-                }
-            }
-
-            var key, i, l,
-                // following vars are used for the cyclic logic
-                value1, value2,
-                isObject1, isObject2,
-                index1, index2,
-                newPath1, newPath2;
-
-            for (i = 0, l = keys1.length; i < l; i++) {
-                key = keys1[i];
-                if (!o.hasOwnProperty.call(obj2, key)) {
-                    return false;
-                }
-
-                // Start of the cyclic logic
-
-                value1 = obj1[key];
-                value2 = obj2[key];
-
-                isObject1 = isObject(value1);
-                isObject2 = isObject(value2);
-
-                // determine, if the objects were already visited
-                // (it's faster to check for isObject first, than to
-                // get -1 from getIndex for non objects)
-                index1 = isObject1 ? getIndex(objects1, value1) : -1;
-                index2 = isObject2 ? getIndex(objects2, value2) : -1;
-
-                // determine the new pathes of the objects
-                // - for non cyclic objects the current path will be extended
-                //   by current property name
-                // - for cyclic objects the stored path is taken
-                newPath1 = index1 !== -1
-                    ? paths1[index1]
-                    : path1 + '[' + JSON.stringify(key) + ']';
-                newPath2 = index2 !== -1
-                    ? paths2[index2]
-                    : path2 + '[' + JSON.stringify(key) + ']';
-
-                // stop recursion if current objects are already compared
-                if (compared[newPath1 + newPath2]) {
-                    return true;
-                }
-
-                // remember the current objects and their pathes
-                if (index1 === -1 && isObject1) {
-                    objects1.push(value1);
-                    paths1.push(newPath1);
-                }
-                if (index2 === -1 && isObject2) {
-                    objects2.push(value2);
-                    paths2.push(newPath2);
-                }
-
-                // remember that the current objects are already compared
-                if (isObject1 && isObject2) {
-                    compared[newPath1 + newPath2] = true;
-                }
-
-                // End of cyclic logic
-
-                // neither value1 nor value2 is a cycle
-                // continue with next level
-                if (!deepEqual(value1, value2, newPath1, newPath2)) {
-                    return false;
-                }
-            }
-
-            return true;
-
-        }(obj1, obj2, '$1', '$2'));
-    }
-
-    var match;
-
-    function arrayContains(array, subset) {
-        if (subset.length === 0) { return true; }
-        var i, l, j, k;
-        for (i = 0, l = array.length; i < l; ++i) {
-            if (match(array[i], subset[0])) {
-                for (j = 0, k = subset.length; j < k; ++j) {
-                    if (!match(array[i + j], subset[j])) { return false; }
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * @name samsam.match
-     * @param Object object
-     * @param Object matcher
-     *
-     * Compare arbitrary value ``object`` with matcher.
-     */
-    match = function match(object, matcher) {
-        if (matcher && typeof matcher.test === "function") {
-            return matcher.test(object);
-        }
-
-        if (typeof matcher === "function") {
-            return matcher(object) === true;
-        }
-
-        if (typeof matcher === "string") {
-            matcher = matcher.toLowerCase();
-            var notNull = typeof object === "string" || !!object;
-            return notNull &&
-                (String(object)).toLowerCase().indexOf(matcher) >= 0;
-        }
-
-        if (typeof matcher === "number") {
-            return matcher === object;
-        }
-
-        if (typeof matcher === "boolean") {
-            return matcher === object;
-        }
-
-        if (typeof(matcher) === "undefined") {
-            return typeof(object) === "undefined";
-        }
-
-        if (matcher === null) {
-            return object === null;
-        }
-
-        if (getClass(object) === "Array" && getClass(matcher) === "Array") {
-            return arrayContains(object, matcher);
-        }
-
-        if (matcher && typeof matcher === "object") {
-            if (matcher === object) {
-                return true;
-            }
-            var prop;
-            for (prop in matcher) {
-                var value = object[prop];
-                if (typeof value === "undefined" &&
-                        typeof object.getAttribute === "function") {
-                    value = object.getAttribute(prop);
-                }
-                if (matcher[prop] === null || typeof matcher[prop] === 'undefined') {
-                    if (value !== matcher[prop]) {
-                        return false;
-                    }
-                } else if (typeof  value === "undefined" || !match(value, matcher[prop])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        throw new Error("Matcher was not a string, a number, a " +
-                        "function, a boolean or an object");
+// Mark that a method should not be used.
+// Returns a modified function which warns once by default.
+// If --no-deprecation is set, then it is a no-op.
+exports.deprecate = function(fn, msg) {
+  // Allow for deprecating things in the process of starting up.
+  if (isUndefined(global.process)) {
+    return function() {
+      return exports.deprecate(fn, msg).apply(this, arguments);
     };
+  }
 
-    return {
-        isArguments: isArguments,
-        isElement: isElement,
-        isDate: isDate,
-        isNegZero: isNegZero,
-        identical: identical,
-        deepEqual: deepEqualCyclic,
-        match: match,
-        keys: keys
-    };
-});
+  if (process.noDeprecation === true) {
+    return fn;
+  }
 
-},{}],14:[function(require,module,exports){
+  var warned = false;
+  function deprecated() {
+    if (!warned) {
+      if (process.throwDeprecation) {
+        throw new Error(msg);
+      } else if (process.traceDeprecation) {
+        console.trace(msg);
+      } else {
+        console.error(msg);
+      }
+      warned = true;
+    }
+    return fn.apply(this, arguments);
+  }
+
+  return deprecated;
+};
+
+
+var debugs = {};
+var debugEnviron;
+exports.debuglog = function(set) {
+  if (isUndefined(debugEnviron))
+    debugEnviron = process.env.NODE_DEBUG || '';
+  set = set.toUpperCase();
+  if (!debugs[set]) {
+    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
+      var pid = process.pid;
+      debugs[set] = function() {
+        var msg = exports.format.apply(exports, arguments);
+        console.error('%s %d: %s', set, pid, msg);
+      };
+    } else {
+      debugs[set] = function() {};
+    }
+  }
+  return debugs[set];
+};
+
+
+/**
+ * Echos the value of a value. Trys to print the value out
+ * in the best way possible given the different types.
+ *
+ * @param {Object} obj The object to print out.
+ * @param {Object} opts Optional options object that alters the output.
+ */
+/* legacy: obj, showHidden, depth, colors*/
+function inspect(obj, opts) {
+  // default options
+  var ctx = {
+    seen: [],
+    stylize: stylizeNoColor
+  };
+  // legacy...
+  if (arguments.length >= 3) ctx.depth = arguments[2];
+  if (arguments.length >= 4) ctx.colors = arguments[3];
+  if (isBoolean(opts)) {
+    // legacy...
+    ctx.showHidden = opts;
+  } else if (opts) {
+    // got an "options" object
+    exports._extend(ctx, opts);
+  }
+  // set default options
+  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
+  if (isUndefined(ctx.depth)) ctx.depth = 2;
+  if (isUndefined(ctx.colors)) ctx.colors = false;
+  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
+  if (ctx.colors) ctx.stylize = stylizeWithColor;
+  return formatValue(ctx, obj, ctx.depth);
+}
+exports.inspect = inspect;
+
+
+// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
+inspect.colors = {
+  'bold' : [1, 22],
+  'italic' : [3, 23],
+  'underline' : [4, 24],
+  'inverse' : [7, 27],
+  'white' : [37, 39],
+  'grey' : [90, 39],
+  'black' : [30, 39],
+  'blue' : [34, 39],
+  'cyan' : [36, 39],
+  'green' : [32, 39],
+  'magenta' : [35, 39],
+  'red' : [31, 39],
+  'yellow' : [33, 39]
+};
+
+// Don't use 'blue' not visible on cmd.exe
+inspect.styles = {
+  'special': 'cyan',
+  'number': 'yellow',
+  'boolean': 'yellow',
+  'undefined': 'grey',
+  'null': 'bold',
+  'string': 'green',
+  'date': 'magenta',
+  // "name": intentionally not styling
+  'regexp': 'red'
+};
+
+
+function stylizeWithColor(str, styleType) {
+  var style = inspect.styles[styleType];
+
+  if (style) {
+    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
+           '\u001b[' + inspect.colors[style][1] + 'm';
+  } else {
+    return str;
+  }
+}
+
+
+function stylizeNoColor(str, styleType) {
+  return str;
+}
+
+
+function arrayToHash(array) {
+  var hash = {};
+
+  array.forEach(function(val, idx) {
+    hash[val] = true;
+  });
+
+  return hash;
+}
+
+
+function formatValue(ctx, value, recurseTimes) {
+  // Provide a hook for user-specified inspect functions.
+  // Check that value is an object with an inspect function on it
+  if (ctx.customInspect &&
+      value &&
+      isFunction(value.inspect) &&
+      // Filter out the util module, it's inspect function is special
+      value.inspect !== exports.inspect &&
+      // Also filter out any prototype objects using the circular check.
+      !(value.constructor && value.constructor.prototype === value)) {
+    var ret = value.inspect(recurseTimes, ctx);
+    if (!isString(ret)) {
+      ret = formatValue(ctx, ret, recurseTimes);
+    }
+    return ret;
+  }
+
+  // Primitive types cannot have properties
+  var primitive = formatPrimitive(ctx, value);
+  if (primitive) {
+    return primitive;
+  }
+
+  // Look up the keys of the object.
+  var keys = Object.keys(value);
+  var visibleKeys = arrayToHash(keys);
+
+  if (ctx.showHidden) {
+    keys = Object.getOwnPropertyNames(value);
+  }
+
+  // IE doesn't make error fields non-enumerable
+  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
+  if (isError(value)
+      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
+    return formatError(value);
+  }
+
+  // Some type of object without properties can be shortcutted.
+  if (keys.length === 0) {
+    if (isFunction(value)) {
+      var name = value.name ? ': ' + value.name : '';
+      return ctx.stylize('[Function' + name + ']', 'special');
+    }
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    }
+    if (isDate(value)) {
+      return ctx.stylize(Date.prototype.toString.call(value), 'date');
+    }
+    if (isError(value)) {
+      return formatError(value);
+    }
+  }
+
+  var base = '', array = false, braces = ['{', '}'];
+
+  // Make Array say that they are Array
+  if (isArray(value)) {
+    array = true;
+    braces = ['[', ']'];
+  }
+
+  // Make functions say that they are functions
+  if (isFunction(value)) {
+    var n = value.name ? ': ' + value.name : '';
+    base = ' [Function' + n + ']';
+  }
+
+  // Make RegExps say that they are RegExps
+  if (isRegExp(value)) {
+    base = ' ' + RegExp.prototype.toString.call(value);
+  }
+
+  // Make dates with properties first say the date
+  if (isDate(value)) {
+    base = ' ' + Date.prototype.toUTCString.call(value);
+  }
+
+  // Make error with message first say the error
+  if (isError(value)) {
+    base = ' ' + formatError(value);
+  }
+
+  if (keys.length === 0 && (!array || value.length == 0)) {
+    return braces[0] + base + braces[1];
+  }
+
+  if (recurseTimes < 0) {
+    if (isRegExp(value)) {
+      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
+    } else {
+      return ctx.stylize('[Object]', 'special');
+    }
+  }
+
+  ctx.seen.push(value);
+
+  var output;
+  if (array) {
+    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
+  } else {
+    output = keys.map(function(key) {
+      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
+    });
+  }
+
+  ctx.seen.pop();
+
+  return reduceToSingleString(output, base, braces);
+}
+
+
+function formatPrimitive(ctx, value) {
+  if (isUndefined(value))
+    return ctx.stylize('undefined', 'undefined');
+  if (isString(value)) {
+    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
+                                             .replace(/'/g, "\\'")
+                                             .replace(/\\"/g, '"') + '\'';
+    return ctx.stylize(simple, 'string');
+  }
+  if (isNumber(value))
+    return ctx.stylize('' + value, 'number');
+  if (isBoolean(value))
+    return ctx.stylize('' + value, 'boolean');
+  // For some reason typeof null is "object", so special case here.
+  if (isNull(value))
+    return ctx.stylize('null', 'null');
+}
+
+
+function formatError(value) {
+  return '[' + Error.prototype.toString.call(value) + ']';
+}
+
+
+function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
+  var output = [];
+  for (var i = 0, l = value.length; i < l; ++i) {
+    if (hasOwnProperty(value, String(i))) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          String(i), true));
+    } else {
+      output.push('');
+    }
+  }
+  keys.forEach(function(key) {
+    if (!key.match(/^\d+$/)) {
+      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
+          key, true));
+    }
+  });
+  return output;
+}
+
+
+function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
+  var name, str, desc;
+  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
+  if (desc.get) {
+    if (desc.set) {
+      str = ctx.stylize('[Getter/Setter]', 'special');
+    } else {
+      str = ctx.stylize('[Getter]', 'special');
+    }
+  } else {
+    if (desc.set) {
+      str = ctx.stylize('[Setter]', 'special');
+    }
+  }
+  if (!hasOwnProperty(visibleKeys, key)) {
+    name = '[' + key + ']';
+  }
+  if (!str) {
+    if (ctx.seen.indexOf(desc.value) < 0) {
+      if (isNull(recurseTimes)) {
+        str = formatValue(ctx, desc.value, null);
+      } else {
+        str = formatValue(ctx, desc.value, recurseTimes - 1);
+      }
+      if (str.indexOf('\n') > -1) {
+        if (array) {
+          str = str.split('\n').map(function(line) {
+            return '  ' + line;
+          }).join('\n').substr(2);
+        } else {
+          str = '\n' + str.split('\n').map(function(line) {
+            return '   ' + line;
+          }).join('\n');
+        }
+      }
+    } else {
+      str = ctx.stylize('[Circular]', 'special');
+    }
+  }
+  if (isUndefined(name)) {
+    if (array && key.match(/^\d+$/)) {
+      return str;
+    }
+    name = JSON.stringify('' + key);
+    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
+      name = name.substr(1, name.length - 2);
+      name = ctx.stylize(name, 'name');
+    } else {
+      name = name.replace(/'/g, "\\'")
+                 .replace(/\\"/g, '"')
+                 .replace(/(^"|"$)/g, "'");
+      name = ctx.stylize(name, 'string');
+    }
+  }
+
+  return name + ': ' + str;
+}
+
+
+function reduceToSingleString(output, base, braces) {
+  var numLinesEst = 0;
+  var length = output.reduce(function(prev, cur) {
+    numLinesEst++;
+    if (cur.indexOf('\n') >= 0) numLinesEst++;
+    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
+  }, 0);
+
+  if (length > 60) {
+    return braces[0] +
+           (base === '' ? '' : base + '\n ') +
+           ' ' +
+           output.join(',\n  ') +
+           ' ' +
+           braces[1];
+  }
+
+  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
+}
+
+
+// NOTE: These type checking functions intentionally don't use `instanceof`
+// because it is fragile and can be easily faked with `Object.create()`.
+function isArray(ar) {
+  return Array.isArray(ar);
+}
+exports.isArray = isArray;
+
+function isBoolean(arg) {
+  return typeof arg === 'boolean';
+}
+exports.isBoolean = isBoolean;
+
+function isNull(arg) {
+  return arg === null;
+}
+exports.isNull = isNull;
+
+function isNullOrUndefined(arg) {
+  return arg == null;
+}
+exports.isNullOrUndefined = isNullOrUndefined;
+
+function isNumber(arg) {
+  return typeof arg === 'number';
+}
+exports.isNumber = isNumber;
+
+function isString(arg) {
+  return typeof arg === 'string';
+}
+exports.isString = isString;
+
+function isSymbol(arg) {
+  return typeof arg === 'symbol';
+}
+exports.isSymbol = isSymbol;
+
+function isUndefined(arg) {
+  return arg === void 0;
+}
+exports.isUndefined = isUndefined;
+
+function isRegExp(re) {
+  return isObject(re) && objectToString(re) === '[object RegExp]';
+}
+exports.isRegExp = isRegExp;
+
+function isObject(arg) {
+  return typeof arg === 'object' && arg !== null;
+}
+exports.isObject = isObject;
+
+function isDate(d) {
+  return isObject(d) && objectToString(d) === '[object Date]';
+}
+exports.isDate = isDate;
+
+function isError(e) {
+  return isObject(e) &&
+      (objectToString(e) === '[object Error]' || e instanceof Error);
+}
+exports.isError = isError;
+
+function isFunction(arg) {
+  return typeof arg === 'function';
+}
+exports.isFunction = isFunction;
+
+function isPrimitive(arg) {
+  return arg === null ||
+         typeof arg === 'boolean' ||
+         typeof arg === 'number' ||
+         typeof arg === 'string' ||
+         typeof arg === 'symbol' ||  // ES6 symbol
+         typeof arg === 'undefined';
+}
+exports.isPrimitive = isPrimitive;
+
+exports.isBuffer = require('./support/isBuffer');
+
+function objectToString(o) {
+  return Object.prototype.toString.call(o);
+}
+
+
+function pad(n) {
+  return n < 10 ? '0' + n.toString(10) : n.toString(10);
+}
+
+
+var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+              'Oct', 'Nov', 'Dec'];
+
+// 26 Feb 16:19:34
+function timestamp() {
+  var d = new Date();
+  var time = [pad(d.getHours()),
+              pad(d.getMinutes()),
+              pad(d.getSeconds())].join(':');
+  return [d.getDate(), months[d.getMonth()], time].join(' ');
+}
+
+
+// log is just a thin wrapper to console.log that prepends a timestamp
+exports.log = function() {
+  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
+};
+
+
+/**
+ * Inherit the prototype methods from one constructor into another.
+ *
+ * The Function.prototype.inherits from lang.js rewritten as a standalone
+ * function (not on Function.prototype). NOTE: If this file is to be loaded
+ * during bootstrapping this function needs to be rewritten using some native
+ * functions as prototype setup using normal JavaScript does not work as
+ * expected during bootstrapping (see mirror.js in r114903).
+ *
+ * @param {function} ctor Constructor function which needs to inherit the
+ *     prototype.
+ * @param {function} superCtor Constructor function to inherit prototype from.
+ */
+exports.inherits = require('inherits');
+
+exports._extend = function(origin, add) {
+  // Don't do anything if add isn't an object
+  if (!add || !isObject(add)) return origin;
+
+  var keys = Object.keys(add);
+  var i = keys.length;
+  while (i--) {
+    origin[keys[i]] = add[keys[i]];
+  }
+  return origin;
+};
+
+function hasOwnProperty(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+}
+
+}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./support/isBuffer":11,"_process":10,"inherits":9}],13:[function(require,module,exports){
 /**
  * Sinon core utilities. For internal use only.
  *
@@ -2016,7 +1472,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     return sinonModule;
 }());
 
-},{"./sinon/assert":15,"./sinon/behavior":16,"./sinon/call":17,"./sinon/collection":18,"./sinon/extend":19,"./sinon/format":20,"./sinon/log_error":21,"./sinon/match":22,"./sinon/mock":23,"./sinon/sandbox":24,"./sinon/spy":25,"./sinon/stub":26,"./sinon/test":27,"./sinon/test_case":28,"./sinon/times_in_words":29,"./sinon/typeOf":30,"./sinon/util/core":31,"./sinon/walk":38}],15:[function(require,module,exports){
+},{"./sinon/assert":14,"./sinon/behavior":15,"./sinon/call":16,"./sinon/collection":17,"./sinon/extend":18,"./sinon/format":19,"./sinon/log_error":20,"./sinon/match":21,"./sinon/mock":22,"./sinon/sandbox":23,"./sinon/spy":24,"./sinon/stub":25,"./sinon/test":26,"./sinon/test_case":27,"./sinon/times_in_words":28,"./sinon/typeOf":29,"./sinon/util/core":30,"./sinon/walk":37}],14:[function(require,module,exports){
 (function (global){
 /**
  * @depend times_in_words.js
@@ -2246,7 +1702,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
 ));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./format":20,"./match":22,"./util/core":31}],16:[function(require,module,exports){
+},{"./format":19,"./match":21,"./util/core":30}],15:[function(require,module,exports){
 (function (process){
 /**
  * @depend util/core.js
@@ -2621,7 +2077,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
 ));
 
 }).call(this,require('_process'))
-},{"./extend":19,"./util/core":31,"_process":12}],17:[function(require,module,exports){
+},{"./extend":18,"./util/core":30,"_process":10}],16:[function(require,module,exports){
 /**
   * @depend util/core.js
   * @depend match.js
@@ -2862,7 +2318,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./format":20,"./match":22,"./util/core":31}],18:[function(require,module,exports){
+},{"./format":19,"./match":21,"./util/core":30}],17:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend spy.js
@@ -3037,7 +2493,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./mock":23,"./spy":25,"./stub":26,"./util/core":31}],19:[function(require,module,exports){
+},{"./mock":22,"./spy":24,"./stub":25,"./util/core":30}],18:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -3150,7 +2606,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":31}],20:[function(require,module,exports){
+},{"./util/core":30}],19:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -3246,7 +2702,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof formatio === "object" && formatio // eslint-disable-line no-undef
 ));
 
-},{"./util/core":31,"formatio":9,"util":40}],21:[function(require,module,exports){
+},{"./util/core":30,"formatio":38,"util":12}],20:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -3332,7 +2788,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":31}],22:[function(require,module,exports){
+},{"./util/core":30}],21:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend typeOf.js
@@ -3595,7 +3051,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./typeOf":30,"./util/core":31}],23:[function(require,module,exports){
+},{"./typeOf":29,"./util/core":30}],22:[function(require,module,exports){
 /**
  * @depend times_in_words.js
  * @depend util/core.js
@@ -4088,7 +3544,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./call":17,"./extend":19,"./format":20,"./match":22,"./spy":25,"./stub":26,"./times_in_words":29,"./util/core":31}],24:[function(require,module,exports){
+},{"./call":16,"./extend":18,"./format":19,"./match":21,"./spy":24,"./stub":25,"./times_in_words":28,"./util/core":30}],23:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend extend.js
@@ -4260,7 +3716,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./collection":18,"./extend":19,"./util/core":31,"./util/fake_server_with_clock":34,"./util/fake_timers":35}],25:[function(require,module,exports){
+},{"./collection":17,"./extend":18,"./util/core":30,"./util/fake_server_with_clock":33,"./util/fake_timers":34}],24:[function(require,module,exports){
 /**
   * @depend times_in_words.js
   * @depend util/core.js
@@ -4725,7 +4181,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./call":17,"./extend":19,"./format":20,"./times_in_words":29,"./util/core":31}],26:[function(require,module,exports){
+},{"./call":16,"./extend":18,"./format":19,"./times_in_words":28,"./util/core":30}],25:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend extend.js
@@ -4927,7 +4383,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./behavior":16,"./extend":19,"./spy":25,"./util/core":31}],27:[function(require,module,exports){
+},{"./behavior":15,"./extend":18,"./spy":24,"./util/core":30}],26:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend sandbox.js
@@ -5027,7 +4483,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     }
 }(typeof sinon === "object" && sinon || null)); // eslint-disable-line no-undef
 
-},{"./sandbox":24,"./util/core":31}],28:[function(require,module,exports){
+},{"./sandbox":23,"./util/core":30}],27:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend test.js
@@ -5135,7 +4591,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./test":27,"./util/core":31}],29:[function(require,module,exports){
+},{"./test":26,"./util/core":30}],28:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -5186,7 +4642,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":31}],30:[function(require,module,exports){
+},{"./util/core":30}],29:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -5241,7 +4697,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":31}],31:[function(require,module,exports){
+},{"./util/core":30}],30:[function(require,module,exports){
 /**
  * @depend ../../sinon.js
  */
@@ -5644,7 +5100,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{}],32:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 /**
  * Minimal Event interface implementation
  *
@@ -5757,7 +5213,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"./core":31}],33:[function(require,module,exports){
+},{"./core":30}],32:[function(require,module,exports){
 /**
  * @depend fake_xdomain_request.js
  * @depend fake_xml_http_request.js
@@ -6006,7 +5462,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"../format":20,"./core":31,"./fake_xdomain_request":36,"./fake_xml_http_request":37}],34:[function(require,module,exports){
+},{"../format":19,"./core":30,"./fake_xdomain_request":35,"./fake_xml_http_request":36}],33:[function(require,module,exports){
 /**
  * @depend fake_server.js
  * @depend fake_timers.js
@@ -6109,7 +5565,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"./core":31,"./fake_server":33,"./fake_timers":35}],35:[function(require,module,exports){
+},{"./core":30,"./fake_server":32,"./fake_timers":34}],34:[function(require,module,exports){
 /**
  * Fake timer API
  * setTimeout
@@ -6184,7 +5640,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"./core":31,"lolex":11}],36:[function(require,module,exports){
+},{"./core":30,"lolex":39}],35:[function(require,module,exports){
 (function (global){
 /**
  * @depend core.js
@@ -6427,7 +5883,7 @@ if (typeof sinon === "undefined") {
 })(typeof global !== "undefined" ? global : self);
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../extend":19,"../log_error":21,"./core":31,"./event":32}],37:[function(require,module,exports){
+},{"../extend":18,"../log_error":20,"./core":30,"./event":31}],36:[function(require,module,exports){
 (function (global){
 /**
  * @depend core.js
@@ -7156,7 +6612,7 @@ if (typeof sinon === "undefined") {
 ));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../extend":19,"../log_error":21,"./core":31,"./event":32}],38:[function(require,module,exports){
+},{"../extend":18,"../log_error":20,"./core":30,"./event":31}],37:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -7237,604 +6693,1148 @@ if (typeof sinon === "undefined") {
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":31}],39:[function(require,module,exports){
-module.exports = function isBuffer(arg) {
-  return arg && typeof arg === 'object'
-    && typeof arg.copy === 'function'
-    && typeof arg.fill === 'function'
-    && typeof arg.readUInt8 === 'function';
-}
-},{}],40:[function(require,module,exports){
-(function (process,global){
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+},{"./util/core":30}],38:[function(require,module,exports){
+(function (global){
+((typeof define === "function" && define.amd && function (m) {
+    define("formatio", ["samsam"], m);
+}) || (typeof module === "object" && function (m) {
+    module.exports = m(require("samsam"));
+}) || function (m) { this.formatio = m(this.samsam); }
+)(function (samsam) {
+    "use strict";
 
-var formatRegExp = /%[sdj%]/g;
-exports.format = function(f) {
-  if (!isString(f)) {
-    var objects = [];
-    for (var i = 0; i < arguments.length; i++) {
-      objects.push(inspect(arguments[i]));
-    }
-    return objects.join(' ');
-  }
-
-  var i = 1;
-  var args = arguments;
-  var len = args.length;
-  var str = String(f).replace(formatRegExp, function(x) {
-    if (x === '%%') return '%';
-    if (i >= len) return x;
-    switch (x) {
-      case '%s': return String(args[i++]);
-      case '%d': return Number(args[i++]);
-      case '%j':
-        try {
-          return JSON.stringify(args[i++]);
-        } catch (_) {
-          return '[Circular]';
-        }
-      default:
-        return x;
-    }
-  });
-  for (var x = args[i]; i < len; x = args[++i]) {
-    if (isNull(x) || !isObject(x)) {
-      str += ' ' + x;
-    } else {
-      str += ' ' + inspect(x);
-    }
-  }
-  return str;
-};
-
-
-// Mark that a method should not be used.
-// Returns a modified function which warns once by default.
-// If --no-deprecation is set, then it is a no-op.
-exports.deprecate = function(fn, msg) {
-  // Allow for deprecating things in the process of starting up.
-  if (isUndefined(global.process)) {
-    return function() {
-      return exports.deprecate(fn, msg).apply(this, arguments);
+    var formatio = {
+        excludeConstructors: ["Object", /^.$/],
+        quoteStrings: true,
+        limitChildrenCount: 0
     };
-  }
 
-  if (process.noDeprecation === true) {
-    return fn;
-  }
+    var hasOwn = Object.prototype.hasOwnProperty;
 
-  var warned = false;
-  function deprecated() {
-    if (!warned) {
-      if (process.throwDeprecation) {
-        throw new Error(msg);
-      } else if (process.traceDeprecation) {
-        console.trace(msg);
-      } else {
-        console.error(msg);
-      }
-      warned = true;
+    var specialObjects = [];
+    if (typeof global !== "undefined") {
+        specialObjects.push({ object: global, value: "[object global]" });
     }
-    return fn.apply(this, arguments);
-  }
-
-  return deprecated;
-};
-
-
-var debugs = {};
-var debugEnviron;
-exports.debuglog = function(set) {
-  if (isUndefined(debugEnviron))
-    debugEnviron = process.env.NODE_DEBUG || '';
-  set = set.toUpperCase();
-  if (!debugs[set]) {
-    if (new RegExp('\\b' + set + '\\b', 'i').test(debugEnviron)) {
-      var pid = process.pid;
-      debugs[set] = function() {
-        var msg = exports.format.apply(exports, arguments);
-        console.error('%s %d: %s', set, pid, msg);
-      };
-    } else {
-      debugs[set] = function() {};
+    if (typeof document !== "undefined") {
+        specialObjects.push({
+            object: document,
+            value: "[object HTMLDocument]"
+        });
     }
-  }
-  return debugs[set];
-};
-
-
-/**
- * Echos the value of a value. Trys to print the value out
- * in the best way possible given the different types.
- *
- * @param {Object} obj The object to print out.
- * @param {Object} opts Optional options object that alters the output.
- */
-/* legacy: obj, showHidden, depth, colors*/
-function inspect(obj, opts) {
-  // default options
-  var ctx = {
-    seen: [],
-    stylize: stylizeNoColor
-  };
-  // legacy...
-  if (arguments.length >= 3) ctx.depth = arguments[2];
-  if (arguments.length >= 4) ctx.colors = arguments[3];
-  if (isBoolean(opts)) {
-    // legacy...
-    ctx.showHidden = opts;
-  } else if (opts) {
-    // got an "options" object
-    exports._extend(ctx, opts);
-  }
-  // set default options
-  if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
-  if (isUndefined(ctx.depth)) ctx.depth = 2;
-  if (isUndefined(ctx.colors)) ctx.colors = false;
-  if (isUndefined(ctx.customInspect)) ctx.customInspect = true;
-  if (ctx.colors) ctx.stylize = stylizeWithColor;
-  return formatValue(ctx, obj, ctx.depth);
-}
-exports.inspect = inspect;
-
-
-// http://en.wikipedia.org/wiki/ANSI_escape_code#graphics
-inspect.colors = {
-  'bold' : [1, 22],
-  'italic' : [3, 23],
-  'underline' : [4, 24],
-  'inverse' : [7, 27],
-  'white' : [37, 39],
-  'grey' : [90, 39],
-  'black' : [30, 39],
-  'blue' : [34, 39],
-  'cyan' : [36, 39],
-  'green' : [32, 39],
-  'magenta' : [35, 39],
-  'red' : [31, 39],
-  'yellow' : [33, 39]
-};
-
-// Don't use 'blue' not visible on cmd.exe
-inspect.styles = {
-  'special': 'cyan',
-  'number': 'yellow',
-  'boolean': 'yellow',
-  'undefined': 'grey',
-  'null': 'bold',
-  'string': 'green',
-  'date': 'magenta',
-  // "name": intentionally not styling
-  'regexp': 'red'
-};
-
-
-function stylizeWithColor(str, styleType) {
-  var style = inspect.styles[styleType];
-
-  if (style) {
-    return '\u001b[' + inspect.colors[style][0] + 'm' + str +
-           '\u001b[' + inspect.colors[style][1] + 'm';
-  } else {
-    return str;
-  }
-}
-
-
-function stylizeNoColor(str, styleType) {
-  return str;
-}
-
-
-function arrayToHash(array) {
-  var hash = {};
-
-  array.forEach(function(val, idx) {
-    hash[val] = true;
-  });
-
-  return hash;
-}
-
-
-function formatValue(ctx, value, recurseTimes) {
-  // Provide a hook for user-specified inspect functions.
-  // Check that value is an object with an inspect function on it
-  if (ctx.customInspect &&
-      value &&
-      isFunction(value.inspect) &&
-      // Filter out the util module, it's inspect function is special
-      value.inspect !== exports.inspect &&
-      // Also filter out any prototype objects using the circular check.
-      !(value.constructor && value.constructor.prototype === value)) {
-    var ret = value.inspect(recurseTimes, ctx);
-    if (!isString(ret)) {
-      ret = formatValue(ctx, ret, recurseTimes);
+    if (typeof window !== "undefined") {
+        specialObjects.push({ object: window, value: "[object Window]" });
     }
-    return ret;
-  }
 
-  // Primitive types cannot have properties
-  var primitive = formatPrimitive(ctx, value);
-  if (primitive) {
-    return primitive;
-  }
-
-  // Look up the keys of the object.
-  var keys = Object.keys(value);
-  var visibleKeys = arrayToHash(keys);
-
-  if (ctx.showHidden) {
-    keys = Object.getOwnPropertyNames(value);
-  }
-
-  // IE doesn't make error fields non-enumerable
-  // http://msdn.microsoft.com/en-us/library/ie/dww52sbt(v=vs.94).aspx
-  if (isError(value)
-      && (keys.indexOf('message') >= 0 || keys.indexOf('description') >= 0)) {
-    return formatError(value);
-  }
-
-  // Some type of object without properties can be shortcutted.
-  if (keys.length === 0) {
-    if (isFunction(value)) {
-      var name = value.name ? ': ' + value.name : '';
-      return ctx.stylize('[Function' + name + ']', 'special');
+    function functionName(func) {
+        if (!func) { return ""; }
+        if (func.displayName) { return func.displayName; }
+        if (func.name) { return func.name; }
+        var matches = func.toString().match(/function\s+([^\(]+)/m);
+        return (matches && matches[1]) || "";
     }
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    }
-    if (isDate(value)) {
-      return ctx.stylize(Date.prototype.toString.call(value), 'date');
-    }
-    if (isError(value)) {
-      return formatError(value);
-    }
-  }
 
-  var base = '', array = false, braces = ['{', '}'];
+    function constructorName(f, object) {
+        var name = functionName(object && object.constructor);
+        var excludes = f.excludeConstructors ||
+                formatio.excludeConstructors || [];
 
-  // Make Array say that they are Array
-  if (isArray(value)) {
-    array = true;
-    braces = ['[', ']'];
-  }
-
-  // Make functions say that they are functions
-  if (isFunction(value)) {
-    var n = value.name ? ': ' + value.name : '';
-    base = ' [Function' + n + ']';
-  }
-
-  // Make RegExps say that they are RegExps
-  if (isRegExp(value)) {
-    base = ' ' + RegExp.prototype.toString.call(value);
-  }
-
-  // Make dates with properties first say the date
-  if (isDate(value)) {
-    base = ' ' + Date.prototype.toUTCString.call(value);
-  }
-
-  // Make error with message first say the error
-  if (isError(value)) {
-    base = ' ' + formatError(value);
-  }
-
-  if (keys.length === 0 && (!array || value.length == 0)) {
-    return braces[0] + base + braces[1];
-  }
-
-  if (recurseTimes < 0) {
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), 'regexp');
-    } else {
-      return ctx.stylize('[Object]', 'special');
-    }
-  }
-
-  ctx.seen.push(value);
-
-  var output;
-  if (array) {
-    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
-  } else {
-    output = keys.map(function(key) {
-      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
-    });
-  }
-
-  ctx.seen.pop();
-
-  return reduceToSingleString(output, base, braces);
-}
-
-
-function formatPrimitive(ctx, value) {
-  if (isUndefined(value))
-    return ctx.stylize('undefined', 'undefined');
-  if (isString(value)) {
-    var simple = '\'' + JSON.stringify(value).replace(/^"|"$/g, '')
-                                             .replace(/'/g, "\\'")
-                                             .replace(/\\"/g, '"') + '\'';
-    return ctx.stylize(simple, 'string');
-  }
-  if (isNumber(value))
-    return ctx.stylize('' + value, 'number');
-  if (isBoolean(value))
-    return ctx.stylize('' + value, 'boolean');
-  // For some reason typeof null is "object", so special case here.
-  if (isNull(value))
-    return ctx.stylize('null', 'null');
-}
-
-
-function formatError(value) {
-  return '[' + Error.prototype.toString.call(value) + ']';
-}
-
-
-function formatArray(ctx, value, recurseTimes, visibleKeys, keys) {
-  var output = [];
-  for (var i = 0, l = value.length; i < l; ++i) {
-    if (hasOwnProperty(value, String(i))) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          String(i), true));
-    } else {
-      output.push('');
-    }
-  }
-  keys.forEach(function(key) {
-    if (!key.match(/^\d+$/)) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys,
-          key, true));
-    }
-  });
-  return output;
-}
-
-
-function formatProperty(ctx, value, recurseTimes, visibleKeys, key, array) {
-  var name, str, desc;
-  desc = Object.getOwnPropertyDescriptor(value, key) || { value: value[key] };
-  if (desc.get) {
-    if (desc.set) {
-      str = ctx.stylize('[Getter/Setter]', 'special');
-    } else {
-      str = ctx.stylize('[Getter]', 'special');
-    }
-  } else {
-    if (desc.set) {
-      str = ctx.stylize('[Setter]', 'special');
-    }
-  }
-  if (!hasOwnProperty(visibleKeys, key)) {
-    name = '[' + key + ']';
-  }
-  if (!str) {
-    if (ctx.seen.indexOf(desc.value) < 0) {
-      if (isNull(recurseTimes)) {
-        str = formatValue(ctx, desc.value, null);
-      } else {
-        str = formatValue(ctx, desc.value, recurseTimes - 1);
-      }
-      if (str.indexOf('\n') > -1) {
-        if (array) {
-          str = str.split('\n').map(function(line) {
-            return '  ' + line;
-          }).join('\n').substr(2);
-        } else {
-          str = '\n' + str.split('\n').map(function(line) {
-            return '   ' + line;
-          }).join('\n');
+        var i, l;
+        for (i = 0, l = excludes.length; i < l; ++i) {
+            if (typeof excludes[i] === "string" && excludes[i] === name) {
+                return "";
+            } else if (excludes[i].test && excludes[i].test(name)) {
+                return "";
+            }
         }
-      }
-    } else {
-      str = ctx.stylize('[Circular]', 'special');
+
+        return name;
     }
-  }
-  if (isUndefined(name)) {
-    if (array && key.match(/^\d+$/)) {
-      return str;
+
+    function isCircular(object, objects) {
+        if (typeof object !== "object") { return false; }
+        var i, l;
+        for (i = 0, l = objects.length; i < l; ++i) {
+            if (objects[i] === object) { return true; }
+        }
+        return false;
     }
-    name = JSON.stringify('' + key);
-    if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
-      name = name.substr(1, name.length - 2);
-      name = ctx.stylize(name, 'name');
-    } else {
-      name = name.replace(/'/g, "\\'")
-                 .replace(/\\"/g, '"')
-                 .replace(/(^"|"$)/g, "'");
-      name = ctx.stylize(name, 'string');
+
+    function ascii(f, object, processed, indent) {
+        if (typeof object === "string") {
+            var qs = f.quoteStrings;
+            var quote = typeof qs !== "boolean" || qs;
+            return processed || quote ? '"' + object + '"' : object;
+        }
+
+        if (typeof object === "function" && !(object instanceof RegExp)) {
+            return ascii.func(object);
+        }
+
+        processed = processed || [];
+
+        if (isCircular(object, processed)) { return "[Circular]"; }
+
+        if (Object.prototype.toString.call(object) === "[object Array]") {
+            return ascii.array.call(f, object, processed);
+        }
+
+        if (!object) { return String((1/object) === -Infinity ? "-0" : object); }
+        if (samsam.isElement(object)) { return ascii.element(object); }
+
+        if (typeof object.toString === "function" &&
+                object.toString !== Object.prototype.toString) {
+            return object.toString();
+        }
+
+        var i, l;
+        for (i = 0, l = specialObjects.length; i < l; i++) {
+            if (object === specialObjects[i].object) {
+                return specialObjects[i].value;
+            }
+        }
+
+        return ascii.object.call(f, object, processed, indent);
     }
-  }
 
-  return name + ': ' + str;
-}
+    ascii.func = function (func) {
+        return "function " + functionName(func) + "() {}";
+    };
 
+    ascii.array = function (array, processed) {
+        processed = processed || [];
+        processed.push(array);
+        var pieces = [];
+        var i, l;
+        l = (this.limitChildrenCount > 0) ? 
+            Math.min(this.limitChildrenCount, array.length) : array.length;
 
-function reduceToSingleString(output, base, braces) {
-  var numLinesEst = 0;
-  var length = output.reduce(function(prev, cur) {
-    numLinesEst++;
-    if (cur.indexOf('\n') >= 0) numLinesEst++;
-    return prev + cur.replace(/\u001b\[\d\d?m/g, '').length + 1;
-  }, 0);
+        for (i = 0; i < l; ++i) {
+            pieces.push(ascii(this, array[i], processed));
+        }
 
-  if (length > 60) {
-    return braces[0] +
-           (base === '' ? '' : base + '\n ') +
-           ' ' +
-           output.join(',\n  ') +
-           ' ' +
-           braces[1];
-  }
+        if(l < array.length)
+            pieces.push("[... " + (array.length - l) + " more elements]");
 
-  return braces[0] + base + ' ' + output.join(', ') + ' ' + braces[1];
-}
+        return "[" + pieces.join(", ") + "]";
+    };
 
+    ascii.object = function (object, processed, indent) {
+        processed = processed || [];
+        processed.push(object);
+        indent = indent || 0;
+        var pieces = [], properties = samsam.keys(object).sort();
+        var length = 3;
+        var prop, str, obj, i, k, l;
+        l = (this.limitChildrenCount > 0) ? 
+            Math.min(this.limitChildrenCount, properties.length) : properties.length;
 
-// NOTE: These type checking functions intentionally don't use `instanceof`
-// because it is fragile and can be easily faked with `Object.create()`.
-function isArray(ar) {
-  return Array.isArray(ar);
-}
-exports.isArray = isArray;
+        for (i = 0; i < l; ++i) {
+            prop = properties[i];
+            obj = object[prop];
 
-function isBoolean(arg) {
-  return typeof arg === 'boolean';
-}
-exports.isBoolean = isBoolean;
+            if (isCircular(obj, processed)) {
+                str = "[Circular]";
+            } else {
+                str = ascii(this, obj, processed, indent + 2);
+            }
 
-function isNull(arg) {
-  return arg === null;
-}
-exports.isNull = isNull;
+            str = (/\s/.test(prop) ? '"' + prop + '"' : prop) + ": " + str;
+            length += str.length;
+            pieces.push(str);
+        }
 
-function isNullOrUndefined(arg) {
-  return arg == null;
-}
-exports.isNullOrUndefined = isNullOrUndefined;
+        var cons = constructorName(this, object);
+        var prefix = cons ? "[" + cons + "] " : "";
+        var is = "";
+        for (i = 0, k = indent; i < k; ++i) { is += " "; }
 
-function isNumber(arg) {
-  return typeof arg === 'number';
-}
-exports.isNumber = isNumber;
+        if(l < properties.length)
+            pieces.push("[... " + (properties.length - l) + " more elements]");
 
-function isString(arg) {
-  return typeof arg === 'string';
-}
-exports.isString = isString;
+        if (length + indent > 80) {
+            return prefix + "{\n  " + is + pieces.join(",\n  " + is) + "\n" +
+                is + "}";
+        }
+        return prefix + "{ " + pieces.join(", ") + " }";
+    };
 
-function isSymbol(arg) {
-  return typeof arg === 'symbol';
-}
-exports.isSymbol = isSymbol;
+    ascii.element = function (element) {
+        var tagName = element.tagName.toLowerCase();
+        var attrs = element.attributes, attr, pairs = [], attrName, i, l, val;
 
-function isUndefined(arg) {
-  return arg === void 0;
-}
-exports.isUndefined = isUndefined;
+        for (i = 0, l = attrs.length; i < l; ++i) {
+            attr = attrs.item(i);
+            attrName = attr.nodeName.toLowerCase().replace("html:", "");
+            val = attr.nodeValue;
+            if (attrName !== "contenteditable" || val !== "inherit") {
+                if (!!val) { pairs.push(attrName + "=\"" + val + "\""); }
+            }
+        }
 
-function isRegExp(re) {
-  return isObject(re) && objectToString(re) === '[object RegExp]';
-}
-exports.isRegExp = isRegExp;
+        var formatted = "<" + tagName + (pairs.length > 0 ? " " : "");
+        var content = element.innerHTML;
 
-function isObject(arg) {
-  return typeof arg === 'object' && arg !== null;
-}
-exports.isObject = isObject;
+        if (content.length > 20) {
+            content = content.substr(0, 20) + "[...]";
+        }
 
-function isDate(d) {
-  return isObject(d) && objectToString(d) === '[object Date]';
-}
-exports.isDate = isDate;
+        var res = formatted + pairs.join(" ") + ">" + content +
+                "</" + tagName + ">";
 
-function isError(e) {
-  return isObject(e) &&
-      (objectToString(e) === '[object Error]' || e instanceof Error);
-}
-exports.isError = isError;
+        return res.replace(/ contentEditable="inherit"/, "");
+    };
 
-function isFunction(arg) {
-  return typeof arg === 'function';
-}
-exports.isFunction = isFunction;
+    function Formatio(options) {
+        for (var opt in options) {
+            this[opt] = options[opt];
+        }
+    }
 
-function isPrimitive(arg) {
-  return arg === null ||
-         typeof arg === 'boolean' ||
-         typeof arg === 'number' ||
-         typeof arg === 'string' ||
-         typeof arg === 'symbol' ||  // ES6 symbol
-         typeof arg === 'undefined';
-}
-exports.isPrimitive = isPrimitive;
+    Formatio.prototype = {
+        functionName: functionName,
 
-exports.isBuffer = require('./support/isBuffer');
+        configure: function (options) {
+            return new Formatio(options);
+        },
 
-function objectToString(o) {
-  return Object.prototype.toString.call(o);
-}
+        constructorName: function (object) {
+            return constructorName(this, object);
+        },
 
+        ascii: function (object, processed, indent) {
+            return ascii(this, object, processed, indent);
+        }
+    };
 
-function pad(n) {
-  return n < 10 ? '0' + n.toString(10) : n.toString(10);
-}
+    return Formatio.prototype;
+});
 
-
-var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-              'Oct', 'Nov', 'Dec'];
-
-// 26 Feb 16:19:34
-function timestamp() {
-  var d = new Date();
-  var time = [pad(d.getHours()),
-              pad(d.getMinutes()),
-              pad(d.getSeconds())].join(':');
-  return [d.getDate(), months[d.getMonth()], time].join(' ');
-}
-
-
-// log is just a thin wrapper to console.log that prepends a timestamp
-exports.log = function() {
-  console.log('%s - %s', timestamp(), exports.format.apply(exports, arguments));
-};
-
-
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"samsam":40}],39:[function(require,module,exports){
+(function (global){
+/*global global, window*/
 /**
- * Inherit the prototype methods from one constructor into another.
+ * @author Christian Johansen (christian@cjohansen.no) and contributors
+ * @license BSD
  *
- * The Function.prototype.inherits from lang.js rewritten as a standalone
- * function (not on Function.prototype). NOTE: If this file is to be loaded
- * during bootstrapping this function needs to be rewritten using some native
- * functions as prototype setup using normal JavaScript does not work as
- * expected during bootstrapping (see mirror.js in r114903).
- *
- * @param {function} ctor Constructor function which needs to inherit the
- *     prototype.
- * @param {function} superCtor Constructor function to inherit prototype from.
+ * Copyright (c) 2010-2014 Christian Johansen
  */
-exports.inherits = require('inherits');
 
-exports._extend = function(origin, add) {
-  // Don't do anything if add isn't an object
-  if (!add || !isObject(add)) return origin;
+(function (global) {
+    "use strict";
 
-  var keys = Object.keys(add);
-  var i = keys.length;
-  while (i--) {
-    origin[keys[i]] = add[keys[i]];
-  }
-  return origin;
-};
+    // Make properties writable in IE, as per
+    // http://www.adequatelygood.com/Replacing-setTimeout-Globally.html
+    // JSLint being anal
+    var glbl = global;
 
-function hasOwnProperty(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-}
+    global.setTimeout = glbl.setTimeout;
+    global.clearTimeout = glbl.clearTimeout;
+    global.setInterval = glbl.setInterval;
+    global.clearInterval = glbl.clearInterval;
+    global.Date = glbl.Date;
 
-}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":39,"_process":12,"inherits":10}],41:[function(require,module,exports){
+    // setImmediate is not a standard function
+    // avoid adding the prop to the window object if not present
+    if('setImmediate' in global) {
+        global.setImmediate = glbl.setImmediate;
+        global.clearImmediate = glbl.clearImmediate;
+    }
+
+    // node expects setTimeout/setInterval to return a fn object w/ .ref()/.unref()
+    // browsers, a number.
+    // see https://github.com/cjohansen/Sinon.JS/pull/436
+
+    var NOOP = function () { return undefined; };
+    var timeoutResult = setTimeout(NOOP, 0);
+    var addTimerReturnsObject = typeof timeoutResult === "object";
+    clearTimeout(timeoutResult);
+
+    var NativeDate = Date;
+    var uniqueTimerId = 1;
+
+    /**
+     * Parse strings like "01:10:00" (meaning 1 hour, 10 minutes, 0 seconds) into
+     * number of milliseconds. This is used to support human-readable strings passed
+     * to clock.tick()
+     */
+    function parseTime(str) {
+        if (!str) {
+            return 0;
+        }
+
+        var strings = str.split(":");
+        var l = strings.length, i = l;
+        var ms = 0, parsed;
+
+        if (l > 3 || !/^(\d\d:){0,2}\d\d?$/.test(str)) {
+            throw new Error("tick only understands numbers and 'h:m:s'");
+        }
+
+        while (i--) {
+            parsed = parseInt(strings[i], 10);
+
+            if (parsed >= 60) {
+                throw new Error("Invalid time " + str);
+            }
+
+            ms += parsed * Math.pow(60, (l - i - 1));
+        }
+
+        return ms * 1000;
+    }
+
+    /**
+     * Used to grok the `now` parameter to createClock.
+     */
+    function getEpoch(epoch) {
+        if (!epoch) { return 0; }
+        if (typeof epoch.getTime === "function") { return epoch.getTime(); }
+        if (typeof epoch === "number") { return epoch; }
+        throw new TypeError("now should be milliseconds since UNIX epoch");
+    }
+
+    function inRange(from, to, timer) {
+        return timer && timer.callAt >= from && timer.callAt <= to;
+    }
+
+    function mirrorDateProperties(target, source) {
+        var prop;
+        for (prop in source) {
+            if (source.hasOwnProperty(prop)) {
+                target[prop] = source[prop];
+            }
+        }
+
+        // set special now implementation
+        if (source.now) {
+            target.now = function now() {
+                return target.clock.now;
+            };
+        } else {
+            delete target.now;
+        }
+
+        // set special toSource implementation
+        if (source.toSource) {
+            target.toSource = function toSource() {
+                return source.toSource();
+            };
+        } else {
+            delete target.toSource;
+        }
+
+        // set special toString implementation
+        target.toString = function toString() {
+            return source.toString();
+        };
+
+        target.prototype = source.prototype;
+        target.parse = source.parse;
+        target.UTC = source.UTC;
+        target.prototype.toUTCString = source.prototype.toUTCString;
+
+        return target;
+    }
+
+    function createDate() {
+        function ClockDate(year, month, date, hour, minute, second, ms) {
+            // Defensive and verbose to avoid potential harm in passing
+            // explicit undefined when user does not pass argument
+            switch (arguments.length) {
+            case 0:
+                return new NativeDate(ClockDate.clock.now);
+            case 1:
+                return new NativeDate(year);
+            case 2:
+                return new NativeDate(year, month);
+            case 3:
+                return new NativeDate(year, month, date);
+            case 4:
+                return new NativeDate(year, month, date, hour);
+            case 5:
+                return new NativeDate(year, month, date, hour, minute);
+            case 6:
+                return new NativeDate(year, month, date, hour, minute, second);
+            default:
+                return new NativeDate(year, month, date, hour, minute, second, ms);
+            }
+        }
+
+        return mirrorDateProperties(ClockDate, NativeDate);
+    }
+
+    function addTimer(clock, timer) {
+        if (timer.func === undefined) {
+            throw new Error("Callback must be provided to timer calls");
+        }
+
+        if (!clock.timers) {
+            clock.timers = {};
+        }
+
+        timer.id = uniqueTimerId++;
+        timer.createdAt = clock.now;
+        timer.callAt = clock.now + (timer.delay || (clock.duringTick ? 1 : 0));
+
+        clock.timers[timer.id] = timer;
+
+        if (addTimerReturnsObject) {
+            return {
+                id: timer.id,
+                ref: NOOP,
+                unref: NOOP
+            };
+        }
+
+        return timer.id;
+    }
+
+
+    function compareTimers(a, b) {
+        // Sort first by absolute timing
+        if (a.callAt < b.callAt) {
+            return -1;
+        }
+        if (a.callAt > b.callAt) {
+            return 1;
+        }
+
+        // Sort next by immediate, immediate timers take precedence
+        if (a.immediate && !b.immediate) {
+            return -1;
+        }
+        if (!a.immediate && b.immediate) {
+            return 1;
+        }
+
+        // Sort next by creation time, earlier-created timers take precedence
+        if (a.createdAt < b.createdAt) {
+            return -1;
+        }
+        if (a.createdAt > b.createdAt) {
+            return 1;
+        }
+
+        // Sort next by id, lower-id timers take precedence
+        if (a.id < b.id) {
+            return -1;
+        }
+        if (a.id > b.id) {
+            return 1;
+        }
+
+        // As timer ids are unique, no fallback `0` is necessary
+    }
+
+    function firstTimerInRange(clock, from, to) {
+        var timers = clock.timers,
+            timer = null,
+            id,
+            isInRange;
+
+        for (id in timers) {
+            if (timers.hasOwnProperty(id)) {
+                isInRange = inRange(from, to, timers[id]);
+
+                if (isInRange && (!timer || compareTimers(timer, timers[id]) === 1)) {
+                    timer = timers[id];
+                }
+            }
+        }
+
+        return timer;
+    }
+
+    function callTimer(clock, timer) {
+        var exception;
+
+        if (typeof timer.interval === "number") {
+            clock.timers[timer.id].callAt += timer.interval;
+        } else {
+            delete clock.timers[timer.id];
+        }
+
+        try {
+            if (typeof timer.func === "function") {
+                timer.func.apply(null, timer.args);
+            } else {
+                eval(timer.func);
+            }
+        } catch (e) {
+            exception = e;
+        }
+
+        if (!clock.timers[timer.id]) {
+            if (exception) {
+                throw exception;
+            }
+            return;
+        }
+
+        if (exception) {
+            throw exception;
+        }
+    }
+
+    function timerType(timer) {
+        if (timer.immediate) {
+            return "Immediate";
+        } else if (typeof timer.interval !== "undefined") {
+            return "Interval";
+        } else {
+            return "Timeout";
+        }
+    }
+
+    function clearTimer(clock, timerId, ttype) {
+        if (!timerId) {
+            // null appears to be allowed in most browsers, and appears to be
+            // relied upon by some libraries, like Bootstrap carousel
+            return;
+        }
+
+        if (!clock.timers) {
+            clock.timers = [];
+        }
+
+        // in Node, timerId is an object with .ref()/.unref(), and
+        // its .id field is the actual timer id.
+        if (typeof timerId === "object") {
+            timerId = timerId.id;
+        }
+
+        if (clock.timers.hasOwnProperty(timerId)) {
+            // check that the ID matches a timer of the correct type
+            var timer = clock.timers[timerId];
+            if (timerType(timer) === ttype) {
+                delete clock.timers[timerId];
+            } else {
+				throw new Error("Cannot clear timer: timer created with set" + ttype + "() but cleared with clear" + timerType(timer) + "()");
+			}
+        }
+    }
+
+    function uninstall(clock, target) {
+        var method,
+            i,
+            l;
+
+        for (i = 0, l = clock.methods.length; i < l; i++) {
+            method = clock.methods[i];
+
+            if (target[method].hadOwnProperty) {
+                target[method] = clock["_" + method];
+            } else {
+                try {
+                    delete target[method];
+                } catch (ignore) {}
+            }
+        }
+
+        // Prevent multiple executions which will completely remove these props
+        clock.methods = [];
+    }
+
+    function hijackMethod(target, method, clock) {
+        var prop;
+
+        clock[method].hadOwnProperty = Object.prototype.hasOwnProperty.call(target, method);
+        clock["_" + method] = target[method];
+
+        if (method === "Date") {
+            var date = mirrorDateProperties(clock[method], target[method]);
+            target[method] = date;
+        } else {
+            target[method] = function () {
+                return clock[method].apply(clock, arguments);
+            };
+
+            for (prop in clock[method]) {
+                if (clock[method].hasOwnProperty(prop)) {
+                    target[method][prop] = clock[method][prop];
+                }
+            }
+        }
+
+        target[method].clock = clock;
+    }
+
+    var timers = {
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        setImmediate: global.setImmediate,
+        clearImmediate: global.clearImmediate,
+        setInterval: setInterval,
+        clearInterval: clearInterval,
+        Date: Date
+    };
+
+    var keys = Object.keys || function (obj) {
+        var ks = [],
+            key;
+
+        for (key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                ks.push(key);
+            }
+        }
+
+        return ks;
+    };
+
+    exports.timers = timers;
+
+    function createClock(now) {
+        var clock = {
+            now: getEpoch(now),
+            timeouts: {},
+            Date: createDate()
+        };
+
+        clock.Date.clock = clock;
+
+        clock.setTimeout = function setTimeout(func, timeout) {
+            return addTimer(clock, {
+                func: func,
+                args: Array.prototype.slice.call(arguments, 2),
+                delay: timeout
+            });
+        };
+
+        clock.clearTimeout = function clearTimeout(timerId) {
+            return clearTimer(clock, timerId, "Timeout");
+        };
+
+        clock.setInterval = function setInterval(func, timeout) {
+            return addTimer(clock, {
+                func: func,
+                args: Array.prototype.slice.call(arguments, 2),
+                delay: timeout,
+                interval: timeout
+            });
+        };
+
+        clock.clearInterval = function clearInterval(timerId) {
+            return clearTimer(clock, timerId, "Interval");
+        };
+
+        clock.setImmediate = function setImmediate(func) {
+            return addTimer(clock, {
+                func: func,
+                args: Array.prototype.slice.call(arguments, 1),
+                immediate: true
+            });
+        };
+
+        clock.clearImmediate = function clearImmediate(timerId) {
+            return clearTimer(clock, timerId, "Immediate");
+        };
+
+        clock.tick = function tick(ms) {
+            ms = typeof ms === "number" ? ms : parseTime(ms);
+            var tickFrom = clock.now, tickTo = clock.now + ms, previous = clock.now;
+            var timer = firstTimerInRange(clock, tickFrom, tickTo);
+            var oldNow;
+
+            clock.duringTick = true;
+
+            var firstException;
+            while (timer && tickFrom <= tickTo) {
+                if (clock.timers[timer.id]) {
+                    tickFrom = clock.now = timer.callAt;
+                    try {
+                        oldNow = clock.now;
+                        callTimer(clock, timer);
+                        // compensate for any setSystemTime() call during timer callback
+                        if (oldNow !== clock.now) {
+                            tickFrom += clock.now - oldNow;
+                            tickTo += clock.now - oldNow;
+                            previous += clock.now - oldNow;
+                        }
+                    } catch (e) {
+                        firstException = firstException || e;
+                    }
+                }
+
+                timer = firstTimerInRange(clock, previous, tickTo);
+                previous = tickFrom;
+            }
+
+            clock.duringTick = false;
+            clock.now = tickTo;
+
+            if (firstException) {
+                throw firstException;
+            }
+
+            return clock.now;
+        };
+
+        clock.reset = function reset() {
+            clock.timers = {};
+        };
+
+        clock.setSystemTime = function setSystemTime(now) {
+            // determine time difference
+            var newNow = getEpoch(now);
+            var difference = newNow - clock.now;
+
+            // update 'system clock'
+            clock.now = newNow;
+
+            // update timers and intervals to keep them stable
+            for (var id in clock.timers) {
+                if (clock.timers.hasOwnProperty(id)) {
+                    var timer = clock.timers[id];
+                    timer.createdAt += difference;
+                    timer.callAt += difference;
+                }
+            }
+        };
+
+        return clock;
+    }
+    exports.createClock = createClock;
+
+    exports.install = function install(target, now, toFake) {
+        var i,
+            l;
+
+        if (typeof target === "number") {
+            toFake = now;
+            now = target;
+            target = null;
+        }
+
+        if (!target) {
+            target = global;
+        }
+
+        var clock = createClock(now);
+
+        clock.uninstall = function () {
+            uninstall(clock, target);
+        };
+
+        clock.methods = toFake || [];
+
+        if (clock.methods.length === 0) {
+            clock.methods = keys(timers);
+        }
+
+        for (i = 0, l = clock.methods.length; i < l; i++) {
+            hijackMethod(target, clock.methods[i], clock);
+        }
+
+        return clock;
+    };
+
+}(global || this));
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],40:[function(require,module,exports){
+((typeof define === "function" && define.amd && function (m) { define("samsam", m); }) ||
+ (typeof module === "object" &&
+      function (m) { module.exports = m(); }) || // Node
+ function (m) { this.samsam = m(); } // Browser globals
+)(function () {
+    var o = Object.prototype;
+    var div = typeof document !== "undefined" && document.createElement("div");
+
+    function isNaN(value) {
+        // Unlike global isNaN, this avoids type coercion
+        // typeof check avoids IE host object issues, hat tip to
+        // lodash
+        var val = value; // JsLint thinks value !== value is "weird"
+        return typeof value === "number" && value !== val;
+    }
+
+    function getClass(value) {
+        // Returns the internal [[Class]] by calling Object.prototype.toString
+        // with the provided value as this. Return value is a string, naming the
+        // internal class, e.g. "Array"
+        return o.toString.call(value).split(/[ \]]/)[1];
+    }
+
+    /**
+     * @name samsam.isArguments
+     * @param Object object
+     *
+     * Returns ``true`` if ``object`` is an ``arguments`` object,
+     * ``false`` otherwise.
+     */
+    function isArguments(object) {
+        if (getClass(object) === 'Arguments') { return true; }
+        if (typeof object !== "object" || typeof object.length !== "number" ||
+                getClass(object) === "Array") {
+            return false;
+        }
+        if (typeof object.callee == "function") { return true; }
+        try {
+            object[object.length] = 6;
+            delete object[object.length];
+        } catch (e) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @name samsam.isElement
+     * @param Object object
+     *
+     * Returns ``true`` if ``object`` is a DOM element node. Unlike
+     * Underscore.js/lodash, this function will return ``false`` if ``object``
+     * is an *element-like* object, i.e. a regular object with a ``nodeType``
+     * property that holds the value ``1``.
+     */
+    function isElement(object) {
+        if (!object || object.nodeType !== 1 || !div) { return false; }
+        try {
+            object.appendChild(div);
+            object.removeChild(div);
+        } catch (e) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @name samsam.keys
+     * @param Object object
+     *
+     * Return an array of own property names.
+     */
+    function keys(object) {
+        var ks = [], prop;
+        for (prop in object) {
+            if (o.hasOwnProperty.call(object, prop)) { ks.push(prop); }
+        }
+        return ks;
+    }
+
+    /**
+     * @name samsam.isDate
+     * @param Object value
+     *
+     * Returns true if the object is a ``Date``, or *date-like*. Duck typing
+     * of date objects work by checking that the object has a ``getTime``
+     * function whose return value equals the return value from the object's
+     * ``valueOf``.
+     */
+    function isDate(value) {
+        return typeof value.getTime == "function" &&
+            value.getTime() == value.valueOf();
+    }
+
+    /**
+     * @name samsam.isNegZero
+     * @param Object value
+     *
+     * Returns ``true`` if ``value`` is ``-0``.
+     */
+    function isNegZero(value) {
+        return value === 0 && 1 / value === -Infinity;
+    }
+
+    /**
+     * @name samsam.equal
+     * @param Object obj1
+     * @param Object obj2
+     *
+     * Returns ``true`` if two objects are strictly equal. Compared to
+     * ``===`` there are two exceptions:
+     *
+     *   - NaN is considered equal to NaN
+     *   - -0 and +0 are not considered equal
+     */
+    function identical(obj1, obj2) {
+        if (obj1 === obj2 || (isNaN(obj1) && isNaN(obj2))) {
+            return obj1 !== 0 || isNegZero(obj1) === isNegZero(obj2);
+        }
+    }
+
+
+    /**
+     * @name samsam.deepEqual
+     * @param Object obj1
+     * @param Object obj2
+     *
+     * Deep equal comparison. Two values are "deep equal" if:
+     *
+     *   - They are equal, according to samsam.identical
+     *   - They are both date objects representing the same time
+     *   - They are both arrays containing elements that are all deepEqual
+     *   - They are objects with the same set of properties, and each property
+     *     in ``obj1`` is deepEqual to the corresponding property in ``obj2``
+     *
+     * Supports cyclic objects.
+     */
+    function deepEqualCyclic(obj1, obj2) {
+
+        // used for cyclic comparison
+        // contain already visited objects
+        var objects1 = [],
+            objects2 = [],
+        // contain pathes (position in the object structure)
+        // of the already visited objects
+        // indexes same as in objects arrays
+            paths1 = [],
+            paths2 = [],
+        // contains combinations of already compared objects
+        // in the manner: { "$1['ref']$2['ref']": true }
+            compared = {};
+
+        /**
+         * used to check, if the value of a property is an object
+         * (cyclic logic is only needed for objects)
+         * only needed for cyclic logic
+         */
+        function isObject(value) {
+
+            if (typeof value === 'object' && value !== null &&
+                    !(value instanceof Boolean) &&
+                    !(value instanceof Date)    &&
+                    !(value instanceof Number)  &&
+                    !(value instanceof RegExp)  &&
+                    !(value instanceof String)) {
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * returns the index of the given object in the
+         * given objects array, -1 if not contained
+         * only needed for cyclic logic
+         */
+        function getIndex(objects, obj) {
+
+            var i;
+            for (i = 0; i < objects.length; i++) {
+                if (objects[i] === obj) {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        // does the recursion for the deep equal check
+        return (function deepEqual(obj1, obj2, path1, path2) {
+            var type1 = typeof obj1;
+            var type2 = typeof obj2;
+
+            // == null also matches undefined
+            if (obj1 === obj2 ||
+                    isNaN(obj1) || isNaN(obj2) ||
+                    obj1 == null || obj2 == null ||
+                    type1 !== "object" || type2 !== "object") {
+
+                return identical(obj1, obj2);
+            }
+
+            // Elements are only equal if identical(expected, actual)
+            if (isElement(obj1) || isElement(obj2)) { return false; }
+
+            var isDate1 = isDate(obj1), isDate2 = isDate(obj2);
+            if (isDate1 || isDate2) {
+                if (!isDate1 || !isDate2 || obj1.getTime() !== obj2.getTime()) {
+                    return false;
+                }
+            }
+
+            if (obj1 instanceof RegExp && obj2 instanceof RegExp) {
+                if (obj1.toString() !== obj2.toString()) { return false; }
+            }
+
+            var class1 = getClass(obj1);
+            var class2 = getClass(obj2);
+            var keys1 = keys(obj1);
+            var keys2 = keys(obj2);
+
+            if (isArguments(obj1) || isArguments(obj2)) {
+                if (obj1.length !== obj2.length) { return false; }
+            } else {
+                if (type1 !== type2 || class1 !== class2 ||
+                        keys1.length !== keys2.length) {
+                    return false;
+                }
+            }
+
+            var key, i, l,
+                // following vars are used for the cyclic logic
+                value1, value2,
+                isObject1, isObject2,
+                index1, index2,
+                newPath1, newPath2;
+
+            for (i = 0, l = keys1.length; i < l; i++) {
+                key = keys1[i];
+                if (!o.hasOwnProperty.call(obj2, key)) {
+                    return false;
+                }
+
+                // Start of the cyclic logic
+
+                value1 = obj1[key];
+                value2 = obj2[key];
+
+                isObject1 = isObject(value1);
+                isObject2 = isObject(value2);
+
+                // determine, if the objects were already visited
+                // (it's faster to check for isObject first, than to
+                // get -1 from getIndex for non objects)
+                index1 = isObject1 ? getIndex(objects1, value1) : -1;
+                index2 = isObject2 ? getIndex(objects2, value2) : -1;
+
+                // determine the new pathes of the objects
+                // - for non cyclic objects the current path will be extended
+                //   by current property name
+                // - for cyclic objects the stored path is taken
+                newPath1 = index1 !== -1
+                    ? paths1[index1]
+                    : path1 + '[' + JSON.stringify(key) + ']';
+                newPath2 = index2 !== -1
+                    ? paths2[index2]
+                    : path2 + '[' + JSON.stringify(key) + ']';
+
+                // stop recursion if current objects are already compared
+                if (compared[newPath1 + newPath2]) {
+                    return true;
+                }
+
+                // remember the current objects and their pathes
+                if (index1 === -1 && isObject1) {
+                    objects1.push(value1);
+                    paths1.push(newPath1);
+                }
+                if (index2 === -1 && isObject2) {
+                    objects2.push(value2);
+                    paths2.push(newPath2);
+                }
+
+                // remember that the current objects are already compared
+                if (isObject1 && isObject2) {
+                    compared[newPath1 + newPath2] = true;
+                }
+
+                // End of cyclic logic
+
+                // neither value1 nor value2 is a cycle
+                // continue with next level
+                if (!deepEqual(value1, value2, newPath1, newPath2)) {
+                    return false;
+                }
+            }
+
+            return true;
+
+        }(obj1, obj2, '$1', '$2'));
+    }
+
+    var match;
+
+    function arrayContains(array, subset) {
+        if (subset.length === 0) { return true; }
+        var i, l, j, k;
+        for (i = 0, l = array.length; i < l; ++i) {
+            if (match(array[i], subset[0])) {
+                for (j = 0, k = subset.length; j < k; ++j) {
+                    if (!match(array[i + j], subset[j])) { return false; }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * @name samsam.match
+     * @param Object object
+     * @param Object matcher
+     *
+     * Compare arbitrary value ``object`` with matcher.
+     */
+    match = function match(object, matcher) {
+        if (matcher && typeof matcher.test === "function") {
+            return matcher.test(object);
+        }
+
+        if (typeof matcher === "function") {
+            return matcher(object) === true;
+        }
+
+        if (typeof matcher === "string") {
+            matcher = matcher.toLowerCase();
+            var notNull = typeof object === "string" || !!object;
+            return notNull &&
+                (String(object)).toLowerCase().indexOf(matcher) >= 0;
+        }
+
+        if (typeof matcher === "number") {
+            return matcher === object;
+        }
+
+        if (typeof matcher === "boolean") {
+            return matcher === object;
+        }
+
+        if (typeof(matcher) === "undefined") {
+            return typeof(object) === "undefined";
+        }
+
+        if (matcher === null) {
+            return object === null;
+        }
+
+        if (getClass(object) === "Array" && getClass(matcher) === "Array") {
+            return arrayContains(object, matcher);
+        }
+
+        if (matcher && typeof matcher === "object") {
+            if (matcher === object) {
+                return true;
+            }
+            var prop;
+            for (prop in matcher) {
+                var value = object[prop];
+                if (typeof value === "undefined" &&
+                        typeof object.getAttribute === "function") {
+                    value = object.getAttribute(prop);
+                }
+                if (matcher[prop] === null || typeof matcher[prop] === 'undefined') {
+                    if (value !== matcher[prop]) {
+                        return false;
+                    }
+                } else if (typeof  value === "undefined" || !match(value, matcher[prop])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        throw new Error("Matcher was not a string, a number, a " +
+                        "function, a boolean or an object");
+    };
+
+    return {
+        isArguments: isArguments,
+        isElement: isElement,
+        isDate: isDate,
+        isNegZero: isNegZero,
+        identical: identical,
+        deepEqual: deepEqualCyclic,
+        match: match,
+        keys: keys
+    };
+});
+
+},{}],41:[function(require,module,exports){
 (function (global){
 require('sinon')
 if (typeof window === 'undefined') {
@@ -7925,7 +7925,7 @@ require('../')
 window.barometer.url = 'https://localhost:16006'
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":1,"sinon":14}],42:[function(require,module,exports){
+},{"../":1,"sinon":13}],42:[function(require,module,exports){
 'use strict'
 var assert = require('assert')
 var sinon = require('sinon')
@@ -7970,7 +7970,7 @@ describe('Testing event', function () {
   })
 })
 
-},{"../lib/event.js":2,"./_fakeDom.js":41,"assert":8,"sinon":14}],43:[function(require,module,exports){
+},{"../lib/event.js":2,"./_fakeDom.js":41,"assert":8,"sinon":13}],43:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8002,7 +8002,7 @@ describe('Testing pageChange', function () {
   })
 })
 
-},{"../lib/pageChange.js":3,"../lib/transport.js":5,"./_fakeDom.js":41,"sinon":14}],44:[function(require,module,exports){
+},{"../lib/pageChange.js":3,"../lib/transport.js":5,"./_fakeDom.js":41,"sinon":13}],44:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8046,7 +8046,7 @@ describe('Testing pageLoadStats', function () {
   })
 })
 
-},{"../lib/pageLoadStats.js":4,"../lib/transport.js":5,"./_fakeDom.js":41,"assert":8,"sinon":14}],45:[function(require,module,exports){
+},{"../lib/pageLoadStats.js":4,"../lib/transport.js":5,"./_fakeDom.js":41,"assert":8,"sinon":13}],45:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8172,7 +8172,7 @@ describe('Testing transport', function () {
   })
 })
 
-},{"../lib/transport.js":5,"./_fakeDom.js":41,"assert":8,"sinon":14}],47:[function(require,module,exports){
+},{"../lib/transport.js":5,"./_fakeDom.js":41,"assert":8,"sinon":13}],47:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8234,4 +8234,4 @@ describe('Testing xhrStats', function () {
   })
 })
 
-},{"../lib/transport.js":5,"../lib/xhrStats.js":7,"./_fakeDom.js":41,"sinon":14}]},{},[41,42,43,44,45,46,47,48]);
+},{"../lib/transport.js":5,"../lib/xhrStats.js":7,"./_fakeDom.js":41,"sinon":13}]},{},[41,42,43,44,45,46,47,48]);
