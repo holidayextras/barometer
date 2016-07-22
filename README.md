@@ -2,6 +2,8 @@
 
 barometer is a very small `2.4KB` script that will automatically generate browser-side performance metrics and forward them in an efficient manner to a collection service.
 
+![https://saucelabs.com/browser-matrix/theninj4.svg](https://saucelabs.com/browser-matrix/theninj4.svg)
+
 ### Motivation / Justification / Rationale
 
 Every website monitoring tool I've seen that is said to work with single page applications latches in to various frameworks in order to generate metrics. The approach taken with this project is to measure end user experience rather than the performance of functions within any particular framework. This enables us to ship a tiny script in the head of our webpages to collect rich data across any type of web page or application.
