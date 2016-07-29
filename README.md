@@ -45,6 +45,7 @@ Metrics are gathered in the format used by a statsd / graphite / grafana stack -
 * PageChange - When the page loads, or whenever a navigation event occurs, we log a counter for the page visit and a gauge for how long the page load took. The page load is a measure of the time between the navigation event firing, the event loop lagging for over 25ms and finally the event loop freeing up for 125ms. Basically we wait for the page to get busy, then we wait for it to finish being busy.
 * PageLoad - We use `window.performance` to get details of the initial page load.
 * XhrStats - We monkey-patch over `XMLHttpRequest` in order to identify every AJAX request, the destination, the transition between states, final response size and timing.
+* PageResources - `connectEnd`, `connectStart`, `domainLookupEnd`, `domainLookupStart`, `duration`, `fetchStart`, `redirectEnd`, `redirectStart`, `requestStart`, `responseEnd`, `responseStart`, `secureConnectionStart`, `startTime`, `workerStart`.
 
 ### How are the metrics transmitted?
 
