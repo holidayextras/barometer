@@ -12,15 +12,15 @@ describe('Testing pageChange', function () {
     var i
     sinon.stub(transport, 'gauge')
     sinon.stub(transport, 'count')
+    window.barometer.onPageChange(function () {
+      pageChangeFired = true
+    })
     window.clock = sinon.useFakeTimers()
     window.trigger('popstate')
     for (i = 0; i < 20; i++) window.clock.tick(25)
     window.clock.setSystemTime((new Date()).getTime() + 100)
     for (i = 0; i < 20; i++) window.clock.tick(25)
     done()
-    window.barometer.onPageChange(function () {
-      pageChangeFired = true
-    })
   })
   after(function () {
     transport.gauge.restore()
