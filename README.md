@@ -15,6 +15,7 @@ Every website monitoring tool I've seen that is said to work with single page ap
 ```html
 <!DOCTYPE html>
   <head>
+    <meta charset="utf-8">
     <script type="text/javascript">--PASTE-SCRIPT-HERE--</script>
     <script type="text/javascript">window.barometer.url='https://foobar'</script>
     ...
