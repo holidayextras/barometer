@@ -33,8 +33,15 @@ var pageLoadStats = require('./pageLoadStats.js')
 var transport = require('./transport.js')
 
 var pageCounter = 0
+var pageLoadedAt, pageLoadedId
+pageChange._pageEnd = function () {
+  transport.gauge(pageLoadedId, (new Date()) - pageLoadedAt)
+}
 pageChange._logPage = function () {
   transport.count(pageLoadStats._createGaugeName('visits'))
+  if (pageLoadedAt) {
+    pageChange._pageEnd()
+  }
   pageCounter++
   var navStart = new Date()
   var thisPage = pageCounter
@@ -45,6 +52,8 @@ pageChange._logPage = function () {
   var metric = pageLoadStats._createGaugeName('dynamic')
   var done = function () {
     clearTimeout(timeout)
+    pageLoadedAt = new Date()
+    pageLoadedId = pageLoadStats._createGaugeName('engagement')
     var overhead = 25 * 5
     transport.gauge(metric, ((new Date()) - navStart) - overhead)
   }
@@ -147,7 +156,6 @@ if (typeof window.performance === 'object') {
 'use strict'
 var transport = module.exports = {}
 
-var event = require('./event.js')
 var xhrStats = require('./xhrStats')
 var barometer = require('./barometer.js')
 
@@ -186,7 +194,7 @@ transport._triggerFlushBuffer = function () {
   bufferFlush = setTimeout(transport._flushBuffer, 5000)
 }
 
-transport._flushBuffer = function () {
+transport._flushBuffer = function (pageEnd) {
   if (transport.bufferSize === 0) return
   if (!barometer.url) return
 
@@ -199,27 +207,19 @@ transport._flushBuffer = function () {
   transport._initialiseBuffer()
 
   var url = barometer.url
-  var xhr = new xhrStats._XMLHttpRequest()
-  xhr.open('POST', url, true)
-  xhr.setRequestHeader('Content-Type', 'application/json')
-  xhr.send(JSON.stringify(bufferToSend))
-  xhr.timeout = 4 * 1000
-  // xhr.onload = function ()e) { }
-  // xhr.onerror = function ()e) { }
-  // xhr.ontimeout = function ()) { }
-}
-event(window, 'beforeunload', transport._flushBuffer)
-event(window, 'unload', transport._flushBuffer)
-event(window, 'pagehide', transport._flushBuffer)
-event(document, 'mouseout', function (e) {
-  e = e || window.event
-  e = e.relatedTarget || e.toElement
-  if (!e || e.nodeName === 'HTML') {
-    transport._flushBuffer()
-  }
-})
 
-},{"./barometer.js":1,"./event.js":2,"./xhrStats":7}],6:[function(require,module,exports){
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(url, JSON.stringify(bufferToSend))
+  } else {
+    var xhr = new xhrStats._XMLHttpRequest()
+    xhr.open('POST', url, !pageEnd)
+    xhr.setRequestHeader('Content-Type', 'application/json')
+    xhr.send(JSON.stringify(bufferToSend))
+    xhr.timeout = 4 * 1000
+  }
+}
+
+},{"./barometer.js":1,"./xhrStats":7}],6:[function(require,module,exports){
 'use strict'
 module.exports = function (href, hash) {
   var safeUrl = (href || '').split('?')[0].replace(/^https?:\/\//i, '').replace(/[^a-z0-9-\/]/gi, '_')
@@ -7999,6 +7999,12 @@ describe('Testing pageChange', function () {
   it('should measure load times', function () {
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.dynamic', 750)
     sinon.assert.calledWith(transport.count, 'pageload.localhost_9876/context_html.visits')
+  })
+
+  it('should measure engagement', function () {
+    window.clock.tick(100)
+    window.trigger('popstate')
+    sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.engagement', 325)
   })
 })
 

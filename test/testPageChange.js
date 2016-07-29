@@ -27,4 +27,10 @@ describe('Testing pageChange', function () {
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.dynamic', 750)
     sinon.assert.calledWith(transport.count, 'pageload.localhost_9876/context_html.visits')
   })
+
+  it('should measure engagement', function () {
+    window.clock.tick(100)
+    window.trigger('popstate')
+    sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.engagement', 325)
+  })
 })
