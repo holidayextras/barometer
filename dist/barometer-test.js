@@ -302,7 +302,7 @@ transport._flushBuffer = function (pageEnd) {
   if (navigator.sendBeacon) {
     navigator.sendBeacon(url, JSON.stringify(bufferToSend))
   } else {
-    var xhr = new xhrStats._XMLHttpRequest()
+    var xhr = new window.XMLHttpRequest()
     xhr.open('POST', url, !pageEnd)
     xhr.setRequestHeader('Content-Type', 'application/json')
     xhr.send(JSON.stringify(bufferToSend))
@@ -1462,6 +1462,7 @@ function pad(n) {
   return n < 10 ? '0' + n.toString(10) : n.toString(10);
 }
 
+<<<<<<< 43fdfde7ecd48b6ed6c264b20b9d4c6c38fb47cf
 
 var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
               'Oct', 'Nov', 'Dec'];
@@ -1475,6 +1476,44 @@ function timestamp() {
   return [d.getDate(), months[d.getMonth()], time].join(' ');
 }
 
+=======
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = cachedSetTimeout.call(null, cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    cachedClearTimeout.call(null, timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        cachedSetTimeout.call(null, drainQueue, 0);
+    }
+};
+>>>>>>> Track barometer request times
 
 // log is just a thin wrapper to console.log that prepends a timestamp
 exports.log = function() {
@@ -1870,6 +1909,267 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
             return args[callArgAt];
         }
 
+<<<<<<< 43fdfde7ecd48b6ed6c264b20b9d4c6c38fb47cf
+=======
+        function verifyIsValidAssertion(assertionMethod, assertionArgs) {
+            switch (assertionMethod) {
+                case "notCalled":
+                case "called":
+                case "calledOnce":
+                case "calledTwice":
+                case "calledThrice":
+                    if (assertionArgs.length !== 0) {
+                        assert.fail(assertionMethod +
+                                    " takes 1 argument but was called with " +
+                                    (assertionArgs.length + 1) + " arguments");
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        function failAssertion(object, msg) {
+            object = object || global;
+            var failMethod = object.fail || assert.fail;
+            failMethod.call(object, msg);
+        }
+
+        function mirrorPropAsAssertion(name, method, message) {
+            if (arguments.length === 2) {
+                message = method;
+                method = name;
+            }
+
+            assert[name] = function (fake) {
+                verifyIsStub(fake);
+
+                var args = slice.call(arguments, 1);
+                verifyIsValidAssertion(name, args);
+
+                var failed = false;
+
+                if (typeof method === "function") {
+                    failed = !method(fake);
+                } else {
+                    failed = typeof fake[method] === "function" ?
+                        !fake[method].apply(fake, args) : !fake[method];
+                }
+
+                if (failed) {
+                    failAssertion(this, (fake.printf || fake.proxy.printf).apply(fake, [message].concat(args)));
+                } else {
+                    assert.pass(name);
+                }
+            };
+        }
+
+        function exposedName(prefix, prop) {
+            return !prefix || /^fail/.test(prop) ? prop :
+                prefix + prop.slice(0, 1).toUpperCase() + prop.slice(1);
+        }
+
+        assert = {
+            failException: "AssertError",
+
+            fail: function fail(message) {
+                var error = new Error(message);
+                error.name = this.failException || assert.failException;
+
+                throw error;
+            },
+
+            pass: function pass() {},
+
+            callOrder: function assertCallOrder() {
+                verifyIsStub.apply(null, arguments);
+                var expected = "";
+                var actual = "";
+
+                if (!sinon.calledInOrder(arguments)) {
+                    try {
+                        expected = [].join.call(arguments, ", ");
+                        var calls = slice.call(arguments);
+                        var i = calls.length;
+                        while (i) {
+                            if (!calls[--i].called) {
+                                calls.splice(i, 1);
+                            }
+                        }
+                        actual = sinon.orderByFirstCall(calls).join(", ");
+                    } catch (e) {
+                        // If this fails, we'll just fall back to the blank string
+                    }
+
+                    failAssertion(this, "expected " + expected + " to be " +
+                                "called in order but were called as " + actual);
+                } else {
+                    assert.pass("callOrder");
+                }
+            },
+
+            callCount: function assertCallCount(method, count) {
+                verifyIsStub(method);
+
+                if (method.callCount !== count) {
+                    var msg = "expected %n to be called " + sinon.timesInWords(count) +
+                        " but was called %c%C";
+                    failAssertion(this, method.printf(msg));
+                } else {
+                    assert.pass("callCount");
+                }
+            },
+
+            expose: function expose(target, options) {
+                if (!target) {
+                    throw new TypeError("target is null or undefined");
+                }
+
+                var o = options || {};
+                var prefix = typeof o.prefix === "undefined" && "assert" || o.prefix;
+                var includeFail = typeof o.includeFail === "undefined" || !!o.includeFail;
+
+                for (var method in this) {
+                    if (method !== "expose" && (includeFail || !/^(fail)/.test(method))) {
+                        target[exposedName(prefix, method)] = this[method];
+                    }
+                }
+
+                return target;
+            },
+
+            match: function match(actual, expectation) {
+                var matcher = sinon.match(expectation);
+                if (matcher.test(actual)) {
+                    assert.pass("match");
+                } else {
+                    var formatted = [
+                        "expected value to match",
+                        "    expected = " + sinon.format(expectation),
+                        "    actual = " + sinon.format(actual)
+                    ];
+
+                    failAssertion(this, formatted.join("\n"));
+                }
+            }
+        };
+
+        mirrorPropAsAssertion("called", "expected %n to have been called at least once but was never called");
+        mirrorPropAsAssertion("notCalled", function (spy) {
+            return !spy.called;
+        }, "expected %n to not have been called but was called %c%C");
+        mirrorPropAsAssertion("calledOnce", "expected %n to be called once but was called %c%C");
+        mirrorPropAsAssertion("calledTwice", "expected %n to be called twice but was called %c%C");
+        mirrorPropAsAssertion("calledThrice", "expected %n to be called thrice but was called %c%C");
+        mirrorPropAsAssertion("calledOn", "expected %n to be called with %1 as this but was called with %t");
+        mirrorPropAsAssertion(
+            "alwaysCalledOn",
+            "expected %n to always be called with %1 as this but was called with %t"
+        );
+        mirrorPropAsAssertion("calledWithNew", "expected %n to be called with new");
+        mirrorPropAsAssertion("alwaysCalledWithNew", "expected %n to always be called with new");
+        mirrorPropAsAssertion("calledWith", "expected %n to be called with arguments %*%C");
+        mirrorPropAsAssertion("calledWithMatch", "expected %n to be called with match %*%C");
+        mirrorPropAsAssertion("alwaysCalledWith", "expected %n to always be called with arguments %*%C");
+        mirrorPropAsAssertion("alwaysCalledWithMatch", "expected %n to always be called with match %*%C");
+        mirrorPropAsAssertion("calledWithExactly", "expected %n to be called with exact arguments %*%C");
+        mirrorPropAsAssertion("alwaysCalledWithExactly", "expected %n to always be called with exact arguments %*%C");
+        mirrorPropAsAssertion("neverCalledWith", "expected %n to never be called with arguments %*%C");
+        mirrorPropAsAssertion("neverCalledWithMatch", "expected %n to never be called with match %*%C");
+        mirrorPropAsAssertion("threw", "%n did not throw exception%C");
+        mirrorPropAsAssertion("alwaysThrew", "%n did not always throw exception%C");
+
+        sinon.assert = assert;
+        return assert;
+    }
+
+    var isNode = typeof module !== "undefined" && module.exports && typeof require === "function";
+    var isAMD = typeof define === "function" && typeof define.amd === "object" && define.amd;
+
+    function loadDependencies(require, exports, module) {
+        var sinon = require("./util/core");
+        require("./match");
+        require("./format");
+        module.exports = makeApi(sinon);
+    }
+
+    if (isAMD) {
+        define(loadDependencies);
+        return;
+    }
+
+    if (isNode) {
+        loadDependencies(require, module.exports, module);
+        return;
+    }
+
+    if (sinonGlobal) {
+        makeApi(sinonGlobal);
+    }
+}(
+    typeof sinon === "object" && sinon, // eslint-disable-line no-undef
+    typeof global !== "undefined" ? global : self
+));
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"./format":20,"./match":22,"./util/core":31}],16:[function(require,module,exports){
+(function (process){
+/**
+ * @depend util/core.js
+ * @depend extend.js
+ */
+/**
+ * Stub behavior
+ *
+ * @author Christian Johansen (christian@cjohansen.no)
+ * @author Tim Fischbach (mail@timfischbach.de)
+ * @license BSD
+ *
+ * Copyright (c) 2010-2013 Christian Johansen
+ */
+(function (sinonGlobal) {
+    "use strict";
+
+    var slice = Array.prototype.slice;
+    var join = Array.prototype.join;
+    var useLeftMostCallback = -1;
+    var useRightMostCallback = -2;
+
+    var nextTick = (function () {
+        if (typeof process === "object" && typeof process.nextTick === "function") {
+            return process.nextTick;
+        }
+
+        if (typeof setImmediate === "function") {
+            return setImmediate;
+        }
+
+        return function (callback) {
+            setTimeout(callback, 0);
+        };
+    })();
+
+    function throwsException(error, message) {
+        if (typeof error === "string") {
+            this.exception = new Error(message || "");
+            this.exception.name = error;
+        } else if (!error) {
+            this.exception = new Error("Error");
+        } else {
+            this.exception = error;
+        }
+
+        return this;
+    }
+
+    function getCallback(behavior, args) {
+        var callArgAt = behavior.callArgAt;
+
+        if (callArgAt >= 0) {
+            return args[callArgAt];
+        }
+
+>>>>>>> Track barometer request times
         var argumentList;
 
         if (callArgAt === useLeftMostCallback) {
