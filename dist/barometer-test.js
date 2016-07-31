@@ -4,16 +4,17 @@
 var tracker = window.barometer = module.exports = {}
 
 var transport = require('./transport.js')
+var pageChange = require('./pageChange')
 require('./pageLoadStats.js')
 require('./xhrStats.js')
-var pageChange = require('./pageChange')
+require('./pageResources')
 
 tracker.url = null
 tracker.gauge = transport.gauge
 tracker.count = transport.count
 tracker.onPageChange = pageChange.onPageChange
 
-},{"./pageChange":3,"./pageLoadStats.js":4,"./transport.js":5,"./xhrStats.js":7}],2:[function(require,module,exports){
+},{"./pageChange":3,"./pageLoadStats.js":4,"./pageResources":5,"./transport.js":6,"./xhrStats.js":8}],2:[function(require,module,exports){
 /* global */
 'use strict'
 module.exports = function (obj, evt, fn) {
@@ -109,7 +110,7 @@ pageChange.onPageChange = function (cb) {
   onPageChange.push(cb)
 }
 
-},{"./event.js":2,"./pageLoadStats.js":4,"./transport.js":5}],4:[function(require,module,exports){
+},{"./event.js":2,"./pageLoadStats.js":4,"./transport.js":6}],4:[function(require,module,exports){
 /* global document window */
 'use strict'
 var pageLoadStats = module.exports = {}
@@ -160,7 +161,72 @@ if (typeof window.performance === 'object') {
   }
 }
 
-},{"./event.js":2,"./transport.js":5,"./urlSanitiser.js":6}],5:[function(require,module,exports){
+},{"./event.js":2,"./transport.js":6,"./urlSanitiser.js":7}],5:[function(require,module,exports){
+/* global window */
+'use strict'
+var pageResources = module.exports = {}
+
+var pageChange = require('./pageChange.js')
+var transport = require('./transport.js')
+var lastIndex = 0
+var timingOffset = 0
+var pageStart
+
+pageResources.handleResource = function (entry) {
+  var metrics = pageResources.findRule(entry)
+  if (!metrics) return
+  pageResources.track(entry, metrics)
+}
+
+pageResources.findRule = function (entry) {
+  var config = window.barometer.resources
+  if (!config) return
+
+  var name = entry.name.replace(/https?:\/\//i, '').split('/')
+  var domain = name.shift()
+  var path = name.join('/')
+
+  for (var i = 0; i < config.length; i++) {
+    var rule = config[i]
+    if (rule.domain && !domain.match(rule.domain)) continue
+    if (rule.path && !path.match(rule.path)) continue
+    if (rule.type && entry.entryType !== rule.type) continue
+    return rule.metrics
+  }
+  return null
+}
+
+pageResources.track = function (entry, metrics) {
+  var parts = entry.name.replace(/https?:\/\//i, '').split('/')
+  var prefix = 'resources.' + entry.entryType + '.'
+  prefix += parts.shift().replace(/[^a-z0-9_]/gi, '_')
+  prefix += '.'
+  prefix += parts.join('/').split('?')[0].replace(/[^a-z0-9_]/gi, '_')
+
+  for (var i in metrics) {
+    i = metrics[i]
+    var value = entry[i]
+    if (value === 0) continue
+    if (i !== 'duration') value = timingOffset - value
+    transport.gauge(prefix + '.' + i, value)
+  }
+}
+
+pageResources.initialise = function () {
+  if (!window.performance || !window.performance.getEntries) return
+
+  pageStart = new Date()
+  pageChange.onPageChange(function () {
+    timingOffset = (new Date() - pageStart)
+    var entries = window.performance.getEntries()
+    for (; lastIndex < entries.length; lastIndex++) {
+      pageResources.handleResource(entries[lastIndex])
+    }
+  })
+}
+pageResources.initialise()
+
+},{"./pageChange.js":3,"./transport.js":6}],6:[function(require,module,exports){
 /* global window document */
 'use strict'
 var transport = module.exports = {}
@@ -228,7 +294,7 @@ transport._flushBuffer = function (pageEnd) {
   }
 }
 
-},{"./barometer.js":1,"./xhrStats":7}],6:[function(require,module,exports){
+},{"./barometer.js":1,"./xhrStats":8}],7:[function(require,module,exports){
 'use strict'
 module.exports = function (href, hash) {
   var safeUrl = (href || '').split('?')[0].replace(/^https?:\/\//i, '').replace(/[^a-z0-9-\/]/gi, '_')
@@ -238,7 +304,7 @@ module.exports = function (href, hash) {
   return safeUrl // .replace(/\/\//g, '/')
 }
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /* global window */
 'use strict'
 var xhrStats = module.exports = {}
@@ -328,7 +394,7 @@ window.XMLHttpRequest = function () {
   return req
 }
 
-},{"./event.js":2,"./transport.js":5,"./urlSanitiser.js":6}],8:[function(require,module,exports){
+},{"./event.js":2,"./transport.js":6,"./urlSanitiser.js":7}],9:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -689,7 +755,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":12}],9:[function(require,module,exports){
+},{"util/":13}],10:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -714,7 +780,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -835,14 +901,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1432,7 +1498,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":11,"_process":10,"inherits":9}],13:[function(require,module,exports){
+},{"./support/isBuffer":12,"_process":11,"inherits":10}],14:[function(require,module,exports){
 /**
  * Sinon core utilities. For internal use only.
  *
@@ -1481,7 +1547,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     return sinonModule;
 }());
 
-},{"./sinon/assert":14,"./sinon/behavior":15,"./sinon/call":16,"./sinon/collection":17,"./sinon/extend":18,"./sinon/format":19,"./sinon/log_error":20,"./sinon/match":21,"./sinon/mock":22,"./sinon/sandbox":23,"./sinon/spy":24,"./sinon/stub":25,"./sinon/test":26,"./sinon/test_case":27,"./sinon/times_in_words":28,"./sinon/typeOf":29,"./sinon/util/core":30,"./sinon/walk":37}],14:[function(require,module,exports){
+},{"./sinon/assert":15,"./sinon/behavior":16,"./sinon/call":17,"./sinon/collection":18,"./sinon/extend":19,"./sinon/format":20,"./sinon/log_error":21,"./sinon/match":22,"./sinon/mock":23,"./sinon/sandbox":24,"./sinon/spy":25,"./sinon/stub":26,"./sinon/test":27,"./sinon/test_case":28,"./sinon/times_in_words":29,"./sinon/typeOf":30,"./sinon/util/core":31,"./sinon/walk":38}],15:[function(require,module,exports){
 (function (global){
 /**
  * @depend times_in_words.js
@@ -1711,7 +1777,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
 ));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./format":19,"./match":21,"./util/core":30}],15:[function(require,module,exports){
+},{"./format":20,"./match":22,"./util/core":31}],16:[function(require,module,exports){
 (function (process){
 /**
  * @depend util/core.js
@@ -2086,7 +2152,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
 ));
 
 }).call(this,require('_process'))
-},{"./extend":18,"./util/core":30,"_process":10}],16:[function(require,module,exports){
+},{"./extend":19,"./util/core":31,"_process":11}],17:[function(require,module,exports){
 /**
   * @depend util/core.js
   * @depend match.js
@@ -2327,7 +2393,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./format":19,"./match":21,"./util/core":30}],17:[function(require,module,exports){
+},{"./format":20,"./match":22,"./util/core":31}],18:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend spy.js
@@ -2502,7 +2568,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./mock":22,"./spy":24,"./stub":25,"./util/core":30}],18:[function(require,module,exports){
+},{"./mock":23,"./spy":25,"./stub":26,"./util/core":31}],19:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -2615,7 +2681,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":30}],19:[function(require,module,exports){
+},{"./util/core":31}],20:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -2711,7 +2777,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof formatio === "object" && formatio // eslint-disable-line no-undef
 ));
 
-},{"./util/core":30,"formatio":38,"util":12}],20:[function(require,module,exports){
+},{"./util/core":31,"formatio":39,"util":13}],21:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -2797,7 +2863,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":30}],21:[function(require,module,exports){
+},{"./util/core":31}],22:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend typeOf.js
@@ -3060,7 +3126,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./typeOf":29,"./util/core":30}],22:[function(require,module,exports){
+},{"./typeOf":30,"./util/core":31}],23:[function(require,module,exports){
 /**
  * @depend times_in_words.js
  * @depend util/core.js
@@ -3553,7 +3619,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./call":16,"./extend":18,"./format":19,"./match":21,"./spy":24,"./stub":25,"./times_in_words":28,"./util/core":30}],23:[function(require,module,exports){
+},{"./call":17,"./extend":19,"./format":20,"./match":22,"./spy":25,"./stub":26,"./times_in_words":29,"./util/core":31}],24:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend extend.js
@@ -3725,7 +3791,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./collection":17,"./extend":18,"./util/core":30,"./util/fake_server_with_clock":33,"./util/fake_timers":34}],24:[function(require,module,exports){
+},{"./collection":18,"./extend":19,"./util/core":31,"./util/fake_server_with_clock":34,"./util/fake_timers":35}],25:[function(require,module,exports){
 /**
   * @depend times_in_words.js
   * @depend util/core.js
@@ -4190,7 +4256,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./call":16,"./extend":18,"./format":19,"./times_in_words":28,"./util/core":30}],25:[function(require,module,exports){
+},{"./call":17,"./extend":19,"./format":20,"./times_in_words":29,"./util/core":31}],26:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend extend.js
@@ -4392,7 +4458,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./behavior":15,"./extend":18,"./spy":24,"./util/core":30}],26:[function(require,module,exports){
+},{"./behavior":16,"./extend":19,"./spy":25,"./util/core":31}],27:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend sandbox.js
@@ -4492,7 +4558,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     }
 }(typeof sinon === "object" && sinon || null)); // eslint-disable-line no-undef
 
-},{"./sandbox":23,"./util/core":30}],27:[function(require,module,exports){
+},{"./sandbox":24,"./util/core":31}],28:[function(require,module,exports){
 /**
  * @depend util/core.js
  * @depend test.js
@@ -4600,7 +4666,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./test":26,"./util/core":30}],28:[function(require,module,exports){
+},{"./test":27,"./util/core":31}],29:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -4651,7 +4717,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":30}],29:[function(require,module,exports){
+},{"./util/core":31}],30:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -4706,7 +4772,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":30}],30:[function(require,module,exports){
+},{"./util/core":31}],31:[function(require,module,exports){
 /**
  * @depend ../../sinon.js
  */
@@ -5109,7 +5175,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 /**
  * Minimal Event interface implementation
  *
@@ -5222,7 +5288,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"./core":30}],32:[function(require,module,exports){
+},{"./core":31}],33:[function(require,module,exports){
 /**
  * @depend fake_xdomain_request.js
  * @depend fake_xml_http_request.js
@@ -5471,7 +5537,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"../format":19,"./core":30,"./fake_xdomain_request":35,"./fake_xml_http_request":36}],33:[function(require,module,exports){
+},{"../format":20,"./core":31,"./fake_xdomain_request":36,"./fake_xml_http_request":37}],34:[function(require,module,exports){
 /**
  * @depend fake_server.js
  * @depend fake_timers.js
@@ -5574,7 +5640,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"./core":30,"./fake_server":32,"./fake_timers":34}],34:[function(require,module,exports){
+},{"./core":31,"./fake_server":33,"./fake_timers":35}],35:[function(require,module,exports){
 /**
  * Fake timer API
  * setTimeout
@@ -5649,7 +5715,7 @@ if (typeof sinon === "undefined") {
     }
 }());
 
-},{"./core":30,"lolex":39}],35:[function(require,module,exports){
+},{"./core":31,"lolex":40}],36:[function(require,module,exports){
 (function (global){
 /**
  * @depend core.js
@@ -5892,7 +5958,7 @@ if (typeof sinon === "undefined") {
 })(typeof global !== "undefined" ? global : self);
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../extend":18,"../log_error":20,"./core":30,"./event":31}],36:[function(require,module,exports){
+},{"../extend":19,"../log_error":21,"./core":31,"./event":32}],37:[function(require,module,exports){
 (function (global){
 /**
  * @depend core.js
@@ -6621,7 +6687,7 @@ if (typeof sinon === "undefined") {
 ));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../extend":18,"../log_error":20,"./core":30,"./event":31}],37:[function(require,module,exports){
+},{"../extend":19,"../log_error":21,"./core":31,"./event":32}],38:[function(require,module,exports){
 /**
  * @depend util/core.js
  */
@@ -6702,7 +6768,7 @@ if (typeof sinon === "undefined") {
     typeof sinon === "object" && sinon // eslint-disable-line no-undef
 ));
 
-},{"./util/core":30}],38:[function(require,module,exports){
+},{"./util/core":31}],39:[function(require,module,exports){
 (function (global){
 ((typeof define === "function" && define.amd && function (m) {
     define("formatio", ["samsam"], m);
@@ -6919,7 +6985,7 @@ if (typeof sinon === "undefined") {
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"samsam":40}],39:[function(require,module,exports){
+},{"samsam":41}],40:[function(require,module,exports){
 (function (global){
 /*global global, window*/
 /**
@@ -7442,7 +7508,7 @@ if (typeof sinon === "undefined") {
 }(global || this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 ((typeof define === "function" && define.amd && function (m) { define("samsam", m); }) ||
  (typeof module === "object" &&
       function (m) { module.exports = m(); }) || // Node
@@ -7843,7 +7909,7 @@ if (typeof sinon === "undefined") {
     };
 });
 
-},{}],41:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 (function (global){
 require('sinon')
 if (typeof window === 'undefined') {
@@ -7934,7 +8000,7 @@ require('../')
 window.barometer.url = 'https://localhost:16006'
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../":1,"sinon":13}],42:[function(require,module,exports){
+},{"../":1,"sinon":14}],43:[function(require,module,exports){
 'use strict'
 var assert = require('assert')
 var sinon = require('sinon')
@@ -7979,7 +8045,7 @@ describe('Testing event', function () {
   })
 })
 
-},{"../lib/event.js":2,"./_fakeDom.js":41,"assert":8,"sinon":13}],43:[function(require,module,exports){
+},{"../lib/event.js":2,"./_fakeDom.js":42,"assert":9,"sinon":14}],44:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8023,7 +8089,7 @@ describe('Testing pageChange', function () {
   })
 })
 
-},{"../lib/pageChange.js":3,"../lib/transport.js":5,"./_fakeDom.js":41,"assert":8,"sinon":13}],44:[function(require,module,exports){
+},{"../lib/pageChange.js":3,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],45:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8067,7 +8133,7 @@ describe('Testing pageLoadStats', function () {
   })
 })
 
-},{"../lib/pageLoadStats.js":4,"../lib/transport.js":5,"./_fakeDom.js":41,"assert":8,"sinon":13}],45:[function(require,module,exports){
+},{"../lib/pageLoadStats.js":4,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],46:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8082,7 +8148,82 @@ describe('Testing barometer', function () {
   })
 })
 
-},{"../lib/barometer.js":1,"./_fakeDom.js":41,"assert":8}],46:[function(require,module,exports){
+},{"../lib/barometer.js":1,"./_fakeDom.js":42,"assert":9}],47:[function(require,module,exports){
+/* global window */
+'use strict'
+var sinon = require('sinon')
+var assert = require('assert')
+require('./_fakeDom.js')
+var pageChange = require('../lib/pageChange.js')
+var transport = require('../lib/transport.js')
+var pageResources = require('../lib/pageResources.js')
+
+describe('Testing pageResources', function () {
+  before(function () {
+    sinon.stub(transport, 'gauge')
+    sinon.stub(pageChange, 'onPageChange', function (callback) {
+      setTimeout(callback, 500)
+      return callback()
+    })
+    window.clock = sinon.useFakeTimers()
+    var getEntries = sinon.stub()
+    window.performance.getEntries = getEntries
+    var entries = [
+      {
+        name: 'http://foo.com/bar.js?blarg',
+        entryType: 'type1',
+        stat1: 123
+      },
+      {
+        name: 'http://bar.com/foo.js',
+        entryType: 'type2',
+        stat2: 223
+      },
+      {
+        name: 'http://example.com/bar.js',
+        entryType: 'type3',
+        stat2: 100
+      }
+    ]
+    var subsequentEntries = [
+      {
+        name: 'http://foo.com/bar.js',
+        entryType: 'type1',
+        stat1: 723
+      },
+      {
+        name: 'http://bar.com/foo.js',
+        entryType: 'type2',
+        stat2: 823
+      }
+    ]
+    getEntries.onFirstCall().returns(entries)
+    getEntries.onSecondCall().returns(entries.concat(subsequentEntries))
+    window.barometer.resources = [
+      { domain: 'foo.com', metrics: [ 'stat1' ] },
+      { path: /foo\.js$/, metrics: [ 'stat2' ] }
+    ]
+    pageResources.initialise()
+  })
+  after(function () {
+    transport.gauge.restore()
+    pageChange.onPageChange.restore()
+    window.performance.getEntries = null
+    window.clock.restore()
+  })
+
+  it('should measure resource timings', function () {
+    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', -123)
+    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', -223)
+    assert.equal(transport.gauge.callCount, 2)
+    window.clock.tick(600)
+    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', -223)
+    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', -323)
+    assert.equal(transport.gauge.callCount, 4)
+  })
+})
+
+},{"../lib/pageChange.js":3,"../lib/pageResources.js":5,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],48:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8193,7 +8334,7 @@ describe('Testing transport', function () {
   })
 })
 
-},{"../lib/transport.js":5,"./_fakeDom.js":41,"assert":8,"sinon":13}],47:[function(require,module,exports){
+},{"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],49:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8221,7 +8362,7 @@ describe('Testing urlSanitiser', function () {
   })
 })
 
-},{"../lib/urlSanitiser.js":6,"./_fakeDom.js":41,"assert":8}],48:[function(require,module,exports){
+},{"../lib/urlSanitiser.js":7,"./_fakeDom.js":42,"assert":9}],50:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8255,4 +8396,4 @@ describe('Testing xhrStats', function () {
   })
 })
 
-},{"../lib/transport.js":5,"../lib/xhrStats.js":7,"./_fakeDom.js":41,"sinon":13}]},{},[41,42,43,44,45,46,47,48]);
+},{"../lib/transport.js":6,"../lib/xhrStats.js":8,"./_fakeDom.js":42,"sinon":14}]},{},[42,43,44,45,46,47,48,49,50]);
