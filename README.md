@@ -17,10 +17,13 @@ Every website monitoring tool I've seen that is said to work with single page ap
 ```html
 <!DOCTYPE html>
   <head>
+    <meta charset="utf-8">
     <script type="text/javascript">--PASTE-SCRIPT-HERE--</script>
     <script type="text/javascript">window.barometer.url='https://foobar'</script>
     ...
 ```
+
+*IMPORTANT* - The HTML document MUST contain a `<meta>` tag indicating the page contents are encoded in UTF-8 or the packed JS payload won't work. This project uses a combination of `UglifyJS` and `JSCrush` to provide the smallest possible payload to reduce any impact it may have on page load.
 
 If you want to see the generated metrics in your console, you can set `window.barometer.debug` to any truthy value.
 
@@ -73,7 +76,8 @@ window.barometer = {
   url: null,
   debug: null,
   count: function (metric),
-  gauge: function (metric, value) { }
+  gauge: function (metric, value) { },
+  onPageChange: function(callback) { }
 }
 ```
 Other scripts on the page can use this, drastically reducing the barriers to entry for logging application metrics.
