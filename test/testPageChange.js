@@ -7,13 +7,13 @@ require('../lib/pageChange.js')
 var transport = require('../lib/transport.js')
 
 describe('Testing pageChange', function () {
-  var pageChangeFired = false
+  var pageChangedFired = false
   before(function (done) {
     var i
     sinon.stub(transport, 'gauge')
     sinon.stub(transport, 'count')
-    window.barometer.onPageChange(function () {
-      pageChangeFired = true
+    window.barometer.onPageChanged(function () {
+      pageChangedFired = true
     })
     window.clock = sinon.useFakeTimers()
     window.trigger('popstate')
@@ -31,7 +31,7 @@ describe('Testing pageChange', function () {
   it('should measure load times', function () {
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.dynamic', 750)
     sinon.assert.calledWith(transport.count, 'pageload.localhost_9876/context_html.visits')
-    assert.equal(pageChangeFired, true, 'onPageChange event should have been triggered')
+    assert.equal(pageChangedFired, true, 'onPageChanged event should have been triggered')
   })
 
   it('should measure engagement', function () {

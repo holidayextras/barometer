@@ -6,12 +6,12 @@ var tracker = window.barometer = module.exports = {}
 var transport = require('./transport.js')
 require('./pageLoadStats.js')
 require('./xhrStats.js')
-var pageChange = require('./pageChange')
+var pageChanged = require('./pageChange')
 
 tracker.url = null
 tracker.gauge = transport.gauge
 tracker.count = transport.count
-tracker.onPageChange = pageChange.onPageChange
+tracker.onPageChanged = pageChanged.onPageChanged
 
 },{"./pageChange":3,"./pageLoadStats.js":4,"./transport.js":5,"./xhrStats.js":7}],2:[function(require,module,exports){
 /* global */
@@ -27,22 +27,22 @@ module.exports = function (obj, evt, fn) {
 },{}],3:[function(require,module,exports){
 /* global window */
 'use strict'
-var pageChange = module.exports = {}
+var pageChanged = module.exports = {}
 
 var event = require('./event.js')
 var pageLoadStats = require('./pageLoadStats.js')
 var transport = require('./transport.js')
 
 var pageCounter = 0
-var onPageChange = [ ]
+var onPageChanged = [ ]
 var pageLoadedAt, pageLoadedId
-pageChange._pageEnd = function () {
+pageChanged._pageEnd = function () {
   transport.gauge(pageLoadedId, (new Date()) - pageLoadedAt)
 }
-pageChange._logPage = function () {
+pageChanged._logPage = function () {
   transport.count(pageLoadStats._createGaugeName('visits'))
   if (pageLoadedAt) {
-    pageChange._pageEnd()
+    pageChanged._pageEnd()
   }
   pageCounter++
   var navStart = new Date()
@@ -58,8 +58,8 @@ pageChange._logPage = function () {
     pageLoadedId = pageLoadStats._createGaugeName('engagement')
     var overhead = 25 * 5
     transport.gauge(metric, ((new Date()) - navStart) - overhead)
-    for (var j = 0; j < onPageChange.length; j++) {
-      onPageChange[j]()
+    for (var j = 0; j < onPageChanged.length; j++) {
+      onPageChanged[j]()
     }
   }
 
@@ -90,23 +90,23 @@ pageChange._logPage = function () {
   computeEvLag()
 }
 
-pageChange._logPage()
+pageChanged._logPage()
 if (window.history) {
-  event(window, 'popstate', pageChange._logPage);
+  event(window, 'popstate', pageChanged._logPage);
   (function (h) {
     if (!h) return
     var pushState = h.pushState
     h.pushState = function () {
-      pageChange._logPage()
+      pageChanged._logPage()
       return pushState.apply(h, arguments)
     }
   })(window.history)
 } else {
-  event(window, 'hashchange', pageChange._logPage)
+  event(window, 'hashchange', pageChanged._logPage)
 }
 
-pageChange.onPageChange = function (cb) {
-  onPageChange.push(cb)
+pageChanged.onPageChanged = function (cb) {
+  onPageChanged.push(cb)
 }
 
 },{"./event.js":2,"./pageLoadStats.js":4,"./transport.js":5}],4:[function(require,module,exports){
@@ -7989,13 +7989,13 @@ require('../lib/pageChange.js')
 var transport = require('../lib/transport.js')
 
 describe('Testing pageChange', function () {
-  var pageChangeFired = false
+  var pageChangedFired = false
   before(function (done) {
     var i
     sinon.stub(transport, 'gauge')
     sinon.stub(transport, 'count')
-    window.barometer.onPageChange(function () {
-      pageChangeFired = true
+    window.barometer.onPageChanged(function () {
+      pageChangedFired = true
     })
     window.clock = sinon.useFakeTimers()
     window.trigger('popstate')
@@ -8013,7 +8013,7 @@ describe('Testing pageChange', function () {
   it('should measure load times', function () {
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.dynamic', 750)
     sinon.assert.calledWith(transport.count, 'pageload.localhost_9876/context_html.visits')
-    assert.equal(pageChangeFired, true, 'onPageChange event should have been triggered')
+    assert.equal(pageChangedFired, true, 'onPageChanged event should have been triggered')
   })
 
   it('should measure engagement', function () {
