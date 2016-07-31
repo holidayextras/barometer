@@ -21,6 +21,8 @@ Every website monitoring tool I've seen that is said to work with single page ap
     ...
 ```
 
+*IMPORTANT* - The HTML document MUST contain a `<meta>` tag indicating the page contents are encoded in UTF-8 or the packed JS payload won't work. This project uses a combination of `UglifyJS` and `JSCrush` to provide the smallest possible payload to reduce any impact it may have on page load.
+
 If you want to see the generated metrics in your console, you can set `window.barometer.debug` to any truthy value.
 
 ### Metric Payload
