@@ -59,6 +59,14 @@ Whenever the page has finished changing (see PageChanged above) we look back thr
 
 Timings are measured as an offset against the most recent `PageChanged` event, which occurs *after* the page has mutated, and as such all timings will be negative. The recorded values should be interpreted with `0` being the point at which the end user thinks the page is ready. This enables us to fairly measure metrics of all resources across a single page application.
 
+#### OncePageLoaded
+A Mechanism for deferring work until the browser has completely finished loading and all processing is completed. It takes a callback and will invoke it once and only once:
+
+1. If the page has already loaded, the callback should be invoked immediately.
+2. If the page is still loading, as soon as it has finished both loading and processing any clientside JavaScript, it should invoke the callback.
+3. If the page has failed to do anything 6 seconds after the initial page load and the callback has yet to be invoked, it will be invoked.
+
+
 ### How are the metrics transmitted?
 
 * Metrics are batched up and dispatched in bulk.
@@ -77,7 +85,8 @@ window.barometer = {
   debug: null,
   count: function (metric),
   gauge: function (metric, value) { },
-  onPageChanged: function(callback) { }
+  onPageChanged: function(callback) { },
+  oncePageLoaded: function(callback) { }
 }
 ```
 Other scripts on the page can use this, drastically reducing the barriers to entry for logging application metrics.
