@@ -10,7 +10,7 @@ var pageResources = require('../lib/pageResources.js')
 describe('Testing pageResources', function () {
   before(function () {
     sinon.stub(transport, 'gauge')
-    sinon.stub(pageChange, 'onPageChange', function (callback) {
+    sinon.stub(pageChange, 'onPageChanged', function (callback) {
       setTimeout(callback, 500)
       return callback()
     })
@@ -56,7 +56,7 @@ describe('Testing pageResources', function () {
   })
   after(function () {
     transport.gauge.restore()
-    pageChange.onPageChange.restore()
+    pageChange.onPageChanged.restore()
     window.performance.getEntries = null
     window.clock.restore()
   })

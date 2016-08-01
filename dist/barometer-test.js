@@ -232,7 +232,7 @@ pageResources.initialise = function () {
   if (!window.performance || !window.performance.getEntries) return
 
   pageStart = new Date()
-  pageChange.onPageChange(function () {
+  pageChange.onPageChanged(function () {
     timingOffset = (new Date() - pageStart)
     var entries = window.performance.getEntries()
     for (; lastIndex < entries.length; lastIndex++) {
@@ -849,7 +849,7 @@ function drainQueue() {
     if (draining) {
         return;
     }
-    var timeout = cachedSetTimeout(cleanUpNextTick);
+    var timeout = cachedSetTimeout.call(null, cleanUpNextTick);
     draining = true;
 
     var len = queue.length;
@@ -866,7 +866,7 @@ function drainQueue() {
     }
     currentQueue = null;
     draining = false;
-    cachedClearTimeout(timeout);
+    cachedClearTimeout.call(null, timeout);
 }
 
 process.nextTick = function (fun) {
@@ -878,7 +878,7 @@ process.nextTick = function (fun) {
     }
     queue.push(new Item(fun, args));
     if (queue.length === 1 && !draining) {
-        cachedSetTimeout(drainQueue, 0);
+        cachedSetTimeout.call(null, drainQueue, 0);
     }
 };
 
@@ -1612,6 +1612,24 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
             }
         }
 
+        function verifyIsValidAssertion(assertionMethod, assertionArgs) {
+            switch (assertionMethod) {
+                case "notCalled":
+                case "called":
+                case "calledOnce":
+                case "calledTwice":
+                case "calledThrice":
+                    if (assertionArgs.length !== 0) {
+                        assert.fail(assertionMethod +
+                                    " takes 1 argument but was called with " +
+                                    (assertionArgs.length + 1) + " arguments");
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
         function failAssertion(object, msg) {
             object = object || global;
             var failMethod = object.fail || assert.fail;
@@ -1628,6 +1646,8 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
                 verifyIsStub(fake);
 
                 var args = slice.call(arguments, 1);
+                verifyIsValidAssertion(name, args);
+
                 var failed = false;
 
                 if (typeof method === "function") {
@@ -5011,7 +5031,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
             }
 
             for (prop in a) {
-                if (a.hasOwnProperty(prop)) {
+                if (hasOwn.call(a, prop)) {
                     aLength += 1;
 
                     if (!(prop in b)) {
@@ -5025,7 +5045,7 @@ var sinon = (function () { // eslint-disable-line no-unused-vars
             }
 
             for (prop in b) {
-                if (b.hasOwnProperty(prop)) {
+                if (hasOwn.call(b, prop)) {
                     bLength += 1;
                 }
             }
@@ -6103,7 +6123,7 @@ if (typeof sinon === "undefined") {
         }
 
         var xhr = this;
-        var events = ["loadstart", "load", "abort", "loadend"];
+        var events = ["loadstart", "load", "abort", "error", "loadend"];
 
         function addEventListener(eventName) {
             xhr.addEventListener(eventName, function (event) {
@@ -6437,12 +6457,16 @@ if (typeof sinon === "undefined") {
                 }
 
                 if (this.readyState === FakeXMLHttpRequest.DONE) {
-                    if (this.status < 200 || this.status > 299) {
-                        progress = {loaded: 0, total: 0};
+                    // ensure loaded and total are numbers
+                    progress = {
+                      loaded: this.progress || 0,
+                      total: this.progress || 0
+                    };
+
+                    if (this.status === 0) {
                         event = this.aborted ? "abort" : "error";
                     }
                     else {
-                        progress = {loaded: 100, total: 100};
                         event = "load";
                     }
 
@@ -6535,6 +6559,15 @@ if (typeof sinon === "undefined") {
                 this.readyState = FakeXMLHttpRequest.UNSENT;
             },
 
+            error: function error() {
+                clearResponse(this);
+                this.errorFlag = true;
+                this.requestHeaders = {};
+                this.responseHeaders = {};
+
+                this.readyStateChange(FakeXMLHttpRequest.DONE);
+            },
+
             getResponseHeader: function getResponseHeader(header) {
                 if (this.readyState < FakeXMLHttpRequest.HEADERS_RECEIVED) {
                     return null;
@@ -6598,6 +6631,7 @@ if (typeof sinon === "undefined") {
                 } else if (this.responseType === "" && isXmlContentType(contentType)) {
                     this.responseXML = FakeXMLHttpRequest.parseXML(this.responseText);
                 }
+                this.progress = body.length;
                 this.readyStateChange(FakeXMLHttpRequest.DONE);
             },
 
@@ -8018,6 +8052,12 @@ window.barometer.url = 'https://localhost:16006'
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../":1,"sinon":14}],43:[function(require,module,exports){
 'use strict'
+
+var context = require.context('./', true, /test/)
+context.keys().forEach(context)
+
+},{}],44:[function(require,module,exports){
+'use strict'
 var assert = require('assert')
 var sinon = require('sinon')
 require('./_fakeDom.js')
@@ -8061,7 +8101,7 @@ describe('Testing event', function () {
   })
 })
 
-},{"../lib/event.js":2,"./_fakeDom.js":42,"assert":9,"sinon":14}],44:[function(require,module,exports){
+},{"../lib/event.js":2,"./_fakeDom.js":42,"assert":9,"sinon":14}],45:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8111,7 +8151,7 @@ describe('Testing pageChange', function () {
   })
 })
 
-},{"../lib/pageChange.js":3,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],45:[function(require,module,exports){
+},{"../lib/pageChange.js":3,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],46:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8155,7 +8195,7 @@ describe('Testing pageLoadStats', function () {
   })
 })
 
-},{"../lib/pageLoadStats.js":4,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],46:[function(require,module,exports){
+},{"../lib/pageLoadStats.js":4,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],47:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8170,7 +8210,7 @@ describe('Testing barometer', function () {
   })
 })
 
-},{"../lib/barometer.js":1,"./_fakeDom.js":42,"assert":9}],47:[function(require,module,exports){
+},{"../lib/barometer.js":1,"./_fakeDom.js":42,"assert":9}],48:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8183,7 +8223,7 @@ var pageResources = require('../lib/pageResources.js')
 describe('Testing pageResources', function () {
   before(function () {
     sinon.stub(transport, 'gauge')
-    sinon.stub(pageChange, 'onPageChange', function (callback) {
+    sinon.stub(pageChange, 'onPageChanged', function (callback) {
       setTimeout(callback, 500)
       return callback()
     })
@@ -8229,7 +8269,7 @@ describe('Testing pageResources', function () {
   })
   after(function () {
     transport.gauge.restore()
-    pageChange.onPageChange.restore()
+    pageChange.onPageChanged.restore()
     window.performance.getEntries = null
     window.clock.restore()
   })
@@ -8245,7 +8285,7 @@ describe('Testing pageResources', function () {
   })
 })
 
-},{"../lib/pageChange.js":3,"../lib/pageResources.js":5,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],48:[function(require,module,exports){
+},{"../lib/pageChange.js":3,"../lib/pageResources.js":5,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],49:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8356,7 +8396,7 @@ describe('Testing transport', function () {
   })
 })
 
-},{"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],49:[function(require,module,exports){
+},{"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],50:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8384,7 +8424,7 @@ describe('Testing urlSanitiser', function () {
   })
 })
 
-},{"../lib/urlSanitiser.js":7,"./_fakeDom.js":42,"assert":9}],50:[function(require,module,exports){
+},{"../lib/urlSanitiser.js":7,"./_fakeDom.js":42,"assert":9}],51:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8418,4 +8458,4 @@ describe('Testing xhrStats', function () {
   })
 })
 
-},{"../lib/transport.js":6,"../lib/xhrStats.js":8,"./_fakeDom.js":42,"sinon":14}]},{},[42,43,44,45,46,47,48,49,50]);
+},{"../lib/transport.js":6,"../lib/xhrStats.js":8,"./_fakeDom.js":42,"sinon":14}]},{},[42,43,44,45,46,47,48,49,50,51]);
