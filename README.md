@@ -45,9 +45,19 @@ Metrics are gathered in the format used by a statsd / graphite / grafana stack -
 
 ### What metrics are gathered?
 
-* PageChange - When the page loads, or whenever a navigation event occurs, we log a counter for the page visit and a gauge for how long the page load took. The page load is a measure of the time between the navigation event firing, the event loop lagging for over 25ms and finally the event loop freeing up for 125ms. Basically we wait for the page to get busy, then we wait for it to finish being busy.
-* PageLoad - We use `window.performance` to get details of the initial page load.
-* XhrStats - We monkey-patch over `XMLHttpRequest` in order to identify every AJAX request, the destination, the transition between states, final response size and timing.
+#### PageChanged
+When the page loads, or whenever a navigation event occurs, we log a counter for the page visit and a gauge for how long the page load took. The page load is a measure of the time between the navigation event firing, the event loop lagging for over 25ms and finally the event loop freeing up for 125ms. Basically we wait for the page to get busy, then we wait for it to finish being busy. This provides a measure for how efficient single page applications are whilst out in the wild. The approach is framework agnostic.
+
+#### PageLoad
+When the HTML document has loaded, we use `window.performance.{timing,navigation}` for details of the initial page load. They provide measures of network performance and initial DOM performance out in the wild.
+
+#### XhrStats
+By subtly altering the behavious of `window.XMLHttpRequest` we can identify every AJAX request made, the destination, the transitioning between states and final response size. This provides a measure of real world API performance, as seen by end users.
+
+#### PageResources
+Whenever the page has finished changing (see PageChanged above) we look back through all the new `PerformanceEntry` objects in `window.performance`, filter out the entries that match a user-defined rule set on (domain, path and/or type) and generate metrics for the user-defined events of interest. This provides adjustable measures of real-world performance sliced up in many different ways. Keep reading for how to configure this functionality.
+
+Timings are measured as an offset against the most recent `PageChanged` event, which occurs *after* the page has mutated, and as such all timings will be negative. The recorded values should be interpreted with `0` being the point at which the end user thinks the page is ready. This enables us to fairly measure metrics of all resources across a single page application.
 
 ### How are the metrics transmitted?
 
@@ -71,6 +81,33 @@ window.barometer = {
 }
 ```
 Other scripts on the page can use this, drastically reducing the barriers to entry for logging application metrics.
+
+### Configuring PageResource metrics
+
+At it's heart, simply attach an array to `window.barometer.resources`. Each object in the array is a filter which details which resources to match on, and which metrics to gather.
+
+```
+window.barometer.resources = [
+  {
+    domain: 'example.com',
+    path: /\.js$/,
+    type: /.*/,
+    metrics: [ 'startTime', 'duration' ]
+  }
+]
+```
+
+#### Filtering
+
+The following properties are all optional, you can include as many or as few as you like:
+
+ * domain - A string or RegEx of the domain as seen by the end user.
+ * path - A string or RegEx of the URL path as seen by the end user.
+ * type - A string or RegEx of the type of `PerformanceEntry` object.
+
+#### Gathering
+
+The `metrics` property controls which metrics should be gathered. Possible options are: `connectEnd`, `connectStart`, `domainLookupEnd`, `domainLookupStart`, `duration`, `fetchStart`, `redirectEnd`, `redirectStart`, `requestStart`, `responseEnd`, `responseStart`, `secureConnectionStart`, `startTime`, `workerStart`.
 
 ### What could a complete metrics stack look like?
 
