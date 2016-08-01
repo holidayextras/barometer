@@ -12,7 +12,8 @@ require('./pageResources')
 tracker.url = null
 tracker.gauge = transport.gauge
 tracker.count = transport.count
-tracker.onPageChange = pageChange.onPageChange
+tracker.onPageChanged = pageChange.onPageChanged
+tracker.oncePageLoaded = pageChange.oncePageLoaded
 
 },{"./pageChange":3,"./pageLoadStats.js":4,"./pageResources":5,"./transport.js":6,"./xhrStats.js":8}],2:[function(require,module,exports){
 /* global */
@@ -35,8 +36,8 @@ var pageLoadStats = require('./pageLoadStats.js')
 var transport = require('./transport.js')
 
 var pageCounter = 0
-var onPageChange = [ ]
-var pageLoadedAt, pageLoadedId
+var onPageChanged = [ ]
+var pageLoadedAt, pageLoadedId, pageHasLoaded
 pageChange._pageEnd = function () {
   transport.gauge(pageLoadedId, (new Date()) - pageLoadedAt)
 }
@@ -55,17 +56,22 @@ pageChange._logPage = function () {
   var metric = pageLoadStats._createGaugeName('dynamic')
   var done = function () {
     clearTimeout(timeout)
+    pageHasLoaded = true
     pageLoadedAt = new Date()
     pageLoadedId = pageLoadStats._createGaugeName('engagement')
     var overhead = 25 * 5
     transport.gauge(metric, ((new Date()) - navStart) - overhead)
-    for (var j = 0; j < onPageChange.length; j++) {
-      onPageChange[j]()
+    for (var j = 0; j < onPageChanged.length; j++) {
+      onPageChanged[j]()
     }
   }
 
   var timeout = setTimeout(function () {
     stop = true
+    if (pageCounter !== 1) return
+    for (var j = 0; j < onPageChanged.length; j++) {
+      onPageChanged[j]()
+    }
   }, 6000)
 
   var computeEvLag = function () {
@@ -106,8 +112,18 @@ if (window.history) {
   event(window, 'hashchange', pageChange._logPage)
 }
 
-pageChange.onPageChange = function (cb) {
-  onPageChange.push(cb)
+pageChange.onPageChanged = function (cb) {
+  onPageChanged.push(cb)
+}
+
+pageChange.oncePageLoaded = function (cb) {
+  if (pageHasLoaded) return cb()
+  var triggered = false
+  pageChange.onPageChanged(function () {
+    if (triggered) return
+    triggered = true
+    cb()
+  })
 }
 
 },{"./event.js":2,"./pageLoadStats.js":4,"./transport.js":6}],4:[function(require,module,exports){
@@ -8055,13 +8071,17 @@ require('../lib/pageChange.js')
 var transport = require('../lib/transport.js')
 
 describe('Testing pageChange', function () {
-  var pageChangeFired = false
+  var pageChangedFired = false
+  var onPageLoadedCounter = 0
   before(function (done) {
     var i
     sinon.stub(transport, 'gauge')
     sinon.stub(transport, 'count')
-    window.barometer.onPageChange(function () {
-      pageChangeFired = true
+    window.barometer.onPageChanged(function () {
+      pageChangedFired = true
+    })
+    window.barometer.oncePageLoaded(function () {
+      onPageLoadedCounter++
     })
     window.clock = sinon.useFakeTimers()
     window.trigger('popstate')
@@ -8079,13 +8099,15 @@ describe('Testing pageChange', function () {
   it('should measure load times', function () {
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.dynamic', 750)
     sinon.assert.calledWith(transport.count, 'pageload.localhost_9876/context_html.visits')
-    assert.equal(pageChangeFired, true, 'onPageChange event should have been triggered')
+    assert.equal(pageChangedFired, true, 'onPageChanged event should have been triggered')
+    assert.equal(onPageLoadedCounter, 1, 'onPageLoaded event should have been triggered')
   })
 
   it('should measure engagement', function () {
     window.clock.tick(100)
     window.trigger('popstate')
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876/context_html.engagement', 325)
+    assert.equal(onPageLoadedCounter, 1, 'onPageLoaded event should NOT have been triggered')
   })
 })
 
