@@ -8052,12 +8052,6 @@ window.barometer.url = 'https://localhost:16006'
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"../":1,"sinon":14}],43:[function(require,module,exports){
 'use strict'
-
-var context = require.context('./', true, /test/)
-context.keys().forEach(context)
-
-},{}],44:[function(require,module,exports){
-'use strict'
 var assert = require('assert')
 var sinon = require('sinon')
 require('./_fakeDom.js')
@@ -8101,7 +8095,7 @@ describe('Testing event', function () {
   })
 })
 
-},{"../lib/event.js":2,"./_fakeDom.js":42,"assert":9,"sinon":14}],45:[function(require,module,exports){
+},{"../lib/event.js":2,"./_fakeDom.js":42,"assert":9,"sinon":14}],44:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8151,7 +8145,7 @@ describe('Testing pageChange', function () {
   })
 })
 
-},{"../lib/pageChange.js":3,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],46:[function(require,module,exports){
+},{"../lib/pageChange.js":3,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],45:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8195,7 +8189,7 @@ describe('Testing pageLoadStats', function () {
   })
 })
 
-},{"../lib/pageLoadStats.js":4,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],47:[function(require,module,exports){
+},{"../lib/pageLoadStats.js":4,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],46:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8210,7 +8204,7 @@ describe('Testing barometer', function () {
   })
 })
 
-},{"../lib/barometer.js":1,"./_fakeDom.js":42,"assert":9}],48:[function(require,module,exports){
+},{"../lib/barometer.js":1,"./_fakeDom.js":42,"assert":9}],47:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8285,7 +8279,7 @@ describe('Testing pageResources', function () {
   })
 })
 
-},{"../lib/pageChange.js":3,"../lib/pageResources.js":5,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],49:[function(require,module,exports){
+},{"../lib/pageChange.js":3,"../lib/pageResources.js":5,"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],48:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8396,7 +8390,7 @@ describe('Testing transport', function () {
   })
 })
 
-},{"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],50:[function(require,module,exports){
+},{"../lib/transport.js":6,"./_fakeDom.js":42,"assert":9,"sinon":14}],49:[function(require,module,exports){
 /* global window */
 'use strict'
 var assert = require('assert')
@@ -8424,7 +8418,7 @@ describe('Testing urlSanitiser', function () {
   })
 })
 
-},{"../lib/urlSanitiser.js":7,"./_fakeDom.js":42,"assert":9}],51:[function(require,module,exports){
+},{"../lib/urlSanitiser.js":7,"./_fakeDom.js":42,"assert":9}],50:[function(require,module,exports){
 /* global window */
 'use strict'
 var sinon = require('sinon')
@@ -8458,4 +8452,4 @@ describe('Testing xhrStats', function () {
   })
 })
 
-},{"../lib/transport.js":6,"../lib/xhrStats.js":8,"./_fakeDom.js":42,"sinon":14}]},{},[42,43,44,45,46,47,48,49,50,51]);
+},{"../lib/transport.js":6,"../lib/xhrStats.js":8,"./_fakeDom.js":42,"sinon":14}]},{},[42,43,44,45,46,47,48,49,50]);
