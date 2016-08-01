@@ -67,7 +67,7 @@ window.barometer = {
   debug: null,
   count: function (metric),
   gauge: function (metric, value) { },
-  onPageChange: function(callback) { }
+  onPageChanged: function(callback) { }
 }
 ```
 Other scripts on the page can use this, drastically reducing the barriers to entry for logging application metrics.
