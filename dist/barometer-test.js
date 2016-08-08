@@ -304,6 +304,7 @@ transport._flushBuffer = function (pageEnd) {
   } else {
     var xhr = new xhrStats._XMLHttpRequest()
     xhr.open('POST', url, true)
+    xhr.timeout = 4 * 1000
     xhr.setRequestHeader('Content-Type', 'application/json')
     xhr.send(JSON.stringify(bufferToSend))
   }
