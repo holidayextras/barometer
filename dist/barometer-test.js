@@ -329,7 +329,7 @@ var event = require('./event.js')
 var transport = require('./transport.js')
 var urlSanitiser = require('./urlSanitiser.js')
 xhrStats._XMLHttpRequest = window.XMLHttpRequest
-var xhrStates = [ 'UNSENT', 'OPENED', 'HEADERS_RECEIVED', 'LOADING', 'DONE' ]
+var xhrStates = [ 'unsent', 'opened', 'headers_received', 'loading', 'done' ]
 
 xhrStats._createGaugeName = function (stat) {
   return 'xhr.' + stat
@@ -386,7 +386,7 @@ window.XMLHttpRequest = function () {
 
         event(req, 'loadend', function (event) {
           return xhrStats._logMetrics({
-            type: type,
+            type: (type || 'unknown').toLowerCase(),
             url: url,
             readyStateTimes: readyStateTimes,
             offset: offset,
@@ -8455,13 +8455,13 @@ describe('Testing xhrStats', function () {
   })
 
   it('should measure XHR timings', function () {
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.total', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.UNSENT', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.OPENED', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.HEADERS_RECEIVED', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.POST.www_example_com/foo.LOADING', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.size.POST.www_example_com/foo.200', 11)
-    sinon.assert.calledWith(transport.count, 'xhr.responses.POST.www_example_com/foo.200')
+    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com/foo.total', 0)
+    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com/foo.unsent', 0)
+    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com/foo.opened', 0)
+    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com/foo.headers_received', 0)
+    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com/foo.loading', 0)
+    sinon.assert.calledWith(transport.gauge, 'xhr.size.post.www_example_com/foo.200', 11)
+    sinon.assert.calledWith(transport.count, 'xhr.responses.post.www_example_com/foo.200')
   })
 })
 
