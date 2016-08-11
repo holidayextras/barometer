@@ -139,7 +139,9 @@ pageLoadStats._normaliseStats = function (stats) {
   var normalisedStats = { }
   var offset = stats.navigationStart
 
-  stats = stats.toJSON()
+  if (stats.toJSON) {
+    stats = stats.toJSON()
+  }
   for (var stat in stats) {
     if (stat === 'navigationStart') continue
     if (stats[stat] === 0) continue
