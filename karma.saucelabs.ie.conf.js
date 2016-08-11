@@ -28,7 +28,7 @@ module.exports = function (config) {
     singleRun: true,
     autoWatch: false,
     files: [
-      'dist/barometer.min.js',
+      'dist/barometer-ie.min.js',
       'dist/barometer-test.js'
     ],
     port: 9876,
