@@ -13,6 +13,7 @@ describe('Testing xhrStats', function () {
     var xhr = new window.XMLHttpRequest()
     xhr.open('POST', 'www.example.com/foo', true)
     xhr.send('datadatadatadata')
+    window.clock.tick(1)
   })
   after(function () {
     transport.gauge.restore()
@@ -21,7 +22,7 @@ describe('Testing xhrStats', function () {
   })
 
   it('should measure XHR timings', function () {
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.total', 0)
+    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.processed', 0)
     sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.unsent', 0)
     sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.opened', 0)
     sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.headers_received', 0)
