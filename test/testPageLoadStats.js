@@ -9,6 +9,7 @@ var transport = require('../lib/transport.js')
 describe('Testing pageLoadStats', function () {
   before(function () {
     sinon.stub(transport, 'gauge')
+    window.barometer.pageStartedAt = 6
     window.trigger('load')
   })
   after(function () {
@@ -36,7 +37,8 @@ describe('Testing pageLoadStats', function () {
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.domComplete', 18)
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.loadEventStart', 19)
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.loadEventEnd', 20)
+    sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.timeToFirstScript', 5)
     sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.redirects', 2)
-    assert.equal(transport.gauge.callCount, 21)
+    assert.equal(transport.gauge.callCount, 22)
   })
 })
