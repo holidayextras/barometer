@@ -27,6 +27,12 @@ Every website monitoring tool I've seen that is said to work with single page ap
 
 If you want to see the generated metrics in your console, you can set `window.barometer.debug` to any truthy value.
 
+### Taking Readings
+
+* `barometer.gauge(metric, duration)` is a measure of "this event took this long". `metric` is the full metric path, so chose wisely!
+* `barometer.count(metric)` is a measure of "this event just happened". `metric` is the full metric path, so chose wisely!
+* `barometer.offset(metric)` is a measure of "this event just happened now, relative to pageLoad". The metric path will be prefixed with `pageLoad.[domain].[path].` to keep the measurements inline with those gathered out-of-the-box. This feature is great for digging deeper into the bootstrapping process of a single page application.
+
 ### Metric Payload
 
 Metrics are gathered in the format used by a statsd / graphite / grafana stack - there are two types, gauges and counters. The buffered metric payloads sent to the collection service of your choosing look like this:
@@ -83,8 +89,9 @@ This module exposes a mechanism for other pieces of Javascript to generate metri
 window.barometer = {
   url: null,
   debug: null,
-  count: function (metric),
+  count: function (metric) { },
   gauge: function (metric, value) { },
+  offset: function(metric) { },
   onPageChanged: function(callback) { },
   oncePageLoaded: function(callback) { }
 }
