@@ -62,12 +62,12 @@ describe('Testing pageResources', function () {
   })
 
   it('should measure resource timings', function () {
-    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', -123)
-    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', -223)
+    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', 123)
+    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', 223)
     assert.equal(transport.gauge.callCount, 2)
     window.clock.tick(600)
-    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', -223)
-    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', -323)
+    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', 723)
+    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', 823)
     assert.equal(transport.gauge.callCount, 4)
   })
 })
