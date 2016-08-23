@@ -29,8 +29,8 @@ If you want to see the generated metrics in your console, you can set `window.ba
 
 ### Taking Readings
 
-* `barometer.gauge(metric, duration)` is a measure of "this event took this long". `metric` is the full metric path, so chose wisely!
-* `barometer.count(metric)` is a measure of "this event just happened". `metric` is the full metric path, so chose wisely!
+* `barometer.gauge(metric, duration)` is a measure of "this event took this long". `metric` is the full metric path, so choose wisely!
+* `barometer.count(metric)` is a measure of "this event just happened". `metric` is the full metric path, so choose wisely!
 * `barometer.offset(metric)` is a measure of "this event just happened now, relative to pageLoad". The metric path will be prefixed with `pageLoad.[domain].[path].` to keep the measurements inline with those gathered out-of-the-box. This feature is great for digging deeper into the bootstrapping process of a single page application.
 
 ### Metric Payload
