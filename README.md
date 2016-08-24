@@ -132,3 +132,7 @@ The `metrics` property controls which metrics should be gathered. Possible optio
 3. [statsd](https://github.com/etsy/statsd) - A network daemon for statistic aggregation
 4. [Graphite](https://graphiteapp.org/#gettingStarted) - An enterprise-ready monitoring tool
 5. [Grafana](http://grafana.org/) - A tool for querying and visualizing time series and metrics
+
+### How do the metrics relate to one another?
+
+![barometer metrics](https://cloud.githubusercontent.com/assets/3055120/17925021/1e8788d8-69e3-11e6-9b66-0a8737d0a07b.png)
