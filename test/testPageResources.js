@@ -1,7 +1,6 @@
 /* global window */
 'use strict'
 var sinon = require('sinon')
-var assert = require('assert')
 require('./_fakeDom.js')
 var pageChange = require('../lib/pageChange.js')
 var transport = require('../lib/transport.js')
@@ -65,10 +64,8 @@ describe('Testing pageResources', function () {
     sinon.assert.calledWith(transport.gauge, 'resources.foo_com.bar_js.stat1', 123)
     sinon.assert.calledWith(transport.gauge, 'resources.bar_com.foo_js.stat2', 223)
     sinon.assert.calledWith(transport.gauge, 'resources.example_com.payload.stat1', 100)
-    assert.equal(transport.gauge.callCount, 3)
     window.clock.tick(600)
     sinon.assert.calledWith(transport.gauge, 'resources.foo_com.bar_js.stat1', 723)
     sinon.assert.calledWith(transport.gauge, 'resources.bar_com.foo_js.stat2', 823)
-    assert.equal(transport.gauge.callCount, 5)
   })
 })
