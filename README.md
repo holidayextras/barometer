@@ -106,9 +106,9 @@ At it's heart, simply attach an array to `window.barometer.resources`. Each obje
 window.barometer.resources = [
   {
     domain: 'example.com',
-    path: /\.js$/,
-    type: /.*/,
-    metrics: [ 'startTime', 'duration' ]
+    path: /.*-assets(\.gz)\.js$/,
+    metrics: [ 'startTime', 'duration' ],
+    rename: 'assets.js'
   }
 ]
 ```

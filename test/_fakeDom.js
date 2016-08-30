@@ -17,6 +17,7 @@ if (!window.history) window.history = { }
 
 if (!window.location) {
   window.location = {
+    host: 'localhost_9876',
     href: 'localhost_9876',
     hash: '/context_html?foo=bar'
   }

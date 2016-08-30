@@ -1,7 +1,6 @@
 /* global window */
 'use strict'
 var sinon = require('sinon')
-var assert = require('assert')
 require('./_fakeDom.js')
 var pageChange = require('../lib/pageChange.js')
 var transport = require('../lib/transport.js')
@@ -20,29 +19,28 @@ describe('Testing pageResources', function () {
     var entries = [
       {
         name: 'http://foo.com/bar.js?blarg',
-        entryType: 'type1',
         stat1: 123
       },
       {
         name: 'http://bar.com/foo.js',
-        entryType: 'type2',
         stat2: 223
       },
       {
         name: 'http://example.com/bar.js',
-        entryType: 'type3',
         stat2: 100
+      },
+      {
+        name: 'http://example.com/1234567890.payload.gz.js',
+        stat1: 100
       }
     ]
     var subsequentEntries = [
       {
         name: 'http://foo.com/bar.js',
-        entryType: 'type1',
         stat1: 723
       },
       {
         name: 'http://bar.com/foo.js',
-        entryType: 'type2',
         stat2: 823
       }
     ]
@@ -50,7 +48,8 @@ describe('Testing pageResources', function () {
     getEntries.onSecondCall().returns(entries.concat(subsequentEntries))
     window.barometer.resources = [
       { domain: 'foo.com', metrics: [ 'stat1' ] },
-      { path: /foo\.js$/, metrics: [ 'stat2' ] }
+      { path: /foo\.js$/, metrics: [ 'stat2' ] },
+      { path: /payload(\.gz)?\.js$/, metrics: [ 'stat1' ], rename: 'payload' }
     ]
     pageResources.initialise()
   })
@@ -62,12 +61,11 @@ describe('Testing pageResources', function () {
   })
 
   it('should measure resource timings', function () {
-    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', 123)
-    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', 223)
-    assert.equal(transport.gauge.callCount, 2)
+    sinon.assert.calledWith(transport.gauge, 'resources.foo_com.bar_js.stat1', 123)
+    sinon.assert.calledWith(transport.gauge, 'resources.bar_com.foo_js.stat2', 223)
+    sinon.assert.calledWith(transport.gauge, 'resources.example_com.payload.stat1', 100)
     window.clock.tick(600)
-    sinon.assert.calledWith(transport.gauge, 'resources.type1.foo_com.bar_js.stat1', 723)
-    sinon.assert.calledWith(transport.gauge, 'resources.type2.bar_com.foo_js.stat2', 823)
-    assert.equal(transport.gauge.callCount, 4)
+    sinon.assert.calledWith(transport.gauge, 'resources.foo_com.bar_js.stat1', 723)
+    sinon.assert.calledWith(transport.gauge, 'resources.bar_com.foo_js.stat2', 823)
   })
 })
