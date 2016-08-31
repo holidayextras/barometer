@@ -1,15 +1,21 @@
 require('sinon')
+var fakeDom = { }
 if (typeof window === 'undefined') {
   global.window = global.document = { }
+  fakeDom.faked = true
 }
 var events = { }
 
 window.addEventListener = function (evt, fn) {
-  events[evt] = fn
+  var eventCallbacks = events[evt] || []
+  eventCallbacks.push(fn)
+  events[evt] = eventCallbacks
 }
 
 window.trigger = function (evt) {
-  events[evt]()
+  for (var i in events[evt]) {
+    events[evt][i]()
+  }
 }
 
 window.readyState = 'loading'
@@ -47,8 +53,12 @@ window.performance = {
     loadEventStart: 20,
     loadEventEnd: 21,
     toJSON: function () {
-      delete this.toJSON
-      return this
+      var clone = {}
+      for (var i in this) {
+        clone[i] = this[i]
+      }
+      delete clone.toJSON
+      return clone
     }
   },
   navigation: {
@@ -56,21 +66,34 @@ window.performance = {
   }
 }
 
+window.ProgressEvent = true
+
 window.XMLHttpRequest = function () {
   var events = { }
 
   var req = {
+    headers: {},
     readyState: 0,
     status: 200,
     responseText: 'lorem ipsum',
     addEventListener: function (evt, fn) {
       events[evt] = fn
     },
-    trigger: function (evt) {
-      events[evt]()
+    trigger: function () {
+      var args = Array.prototype.slice.call(arguments)
+      var evt = args.shift()
+      if (typeof events[evt] === 'function') {
+        events[evt].apply(req, args)
+      }
+    },
+    setRequestHeader: function (key, value) {
+      req.headers[key] = value
     },
     send: function () { },
     open: function (a, b) {
+      req.method = a
+      req.url = b
+      fakeDom.lastXhr = req
       req.trigger('readystatechange')
       req.readyState++
       req.trigger('readystatechange')
@@ -78,7 +101,18 @@ window.XMLHttpRequest = function () {
       req.trigger('readystatechange')
       req.readyState++
       req.trigger('readystatechange')
-      req.trigger('loadend')
+
+      req.trigger('progress', { loaded: 10, total: 100 })
+      setTimeout(function () {
+        req.trigger('progress', { loaded: 40, total: 100 })
+      }, 50)
+      setTimeout(function () {
+        req.trigger('progress', { loaded: 70, total: 100 })
+      }, 100)
+      setTimeout(function () {
+        req.trigger('progress', { loaded: 100, total: 100 })
+        req.trigger('loadend')
+      }, 150)
     }
   }
   return req
@@ -86,3 +120,5 @@ window.XMLHttpRequest = function () {
 
 require('../')
 window.barometer.url = 'https://localhost:16006'
+
+module.exports = fakeDom

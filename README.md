@@ -73,6 +73,20 @@ A Mechanism for deferring work until the browser has completely finished loading
 3. If the page has failed to do anything 6 seconds after the initial page load and the callback has yet to be invoked, it will be invoked.
 
 
+#### Bandwidth
+
+By downloading a test file for a specified period of time we can report the users bandwidth. This stat is disabled by default, to enable set `barometer.bandwidth` to a truthy value. If it is an object you can specify additional configuration options, each of these example values represents the defaults:
+
+```
+barometer.bandwidth = {
+  defer: 5, // the number of seconds to defer the test by from the page `load` event
+  url: 'https://s3-eu-west-1.amazonaws.com/hx-barometer/test', // an alternative file to download for the test
+  size: 10240000, // the size of the test file in bytes
+  length: 5, // the number of seconds to run the test for
+  every: 60 * 60 * 24 // how ofter to run the test in seconds, note even with a low value it will run a maximum of once per request
+}
+```
+
 ### How are the metrics transmitted?
 
 * Metrics are batched up and dispatched in bulk.
