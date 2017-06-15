@@ -8,7 +8,7 @@ var pageResources = require('../lib/pageResources.js')
 
 describe('Testing pageResources', function () {
   before(function () {
-    sinon.stub(transport, 'gauge')
+    sinon.stub(transport, 'timing')
     sinon.stub(pageChange, 'onPageChanged', function (callback) {
       setTimeout(callback, 500)
       return callback()
@@ -54,18 +54,18 @@ describe('Testing pageResources', function () {
     pageResources.initialise()
   })
   after(function () {
-    transport.gauge.restore()
+    transport.timing.restore()
     pageChange.onPageChanged.restore()
     window.performance.getEntries = null
     window.clock.restore()
   })
 
   it('should measure resource timings', function () {
-    sinon.assert.calledWith(transport.gauge, 'resources.foo_com.bar_js.stat1', 123)
-    sinon.assert.calledWith(transport.gauge, 'resources.bar_com.foo_js.stat2', 223)
-    sinon.assert.calledWith(transport.gauge, 'resources.example_com.payload.stat1', 100)
+    sinon.assert.calledWith(transport.timing, 'client_resource_event{host="foo.com",path="bar.js",lifeCycle="stat1"}', 123)
+    sinon.assert.calledWith(transport.timing, 'client_resource_event{host="bar.com",path="foo.js",lifeCycle="stat2"}', 223)
+    sinon.assert.calledWith(transport.timing, 'client_resource_event{host="example.com",path="payload",lifeCycle="stat1"}', 100)
     window.clock.tick(600)
-    sinon.assert.calledWith(transport.gauge, 'resources.foo_com.bar_js.stat1', 723)
-    sinon.assert.calledWith(transport.gauge, 'resources.bar_com.foo_js.stat2', 823)
+    sinon.assert.calledWith(transport.timing, 'client_resource_event{host="foo.com",path="bar.js",lifeCycle="stat1"}', 723)
+    sinon.assert.calledWith(transport.timing, 'client_resource_event{host="bar.com",path="foo.js",lifeCycle="stat2"}', 823)
   })
 })

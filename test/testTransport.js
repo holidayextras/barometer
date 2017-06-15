@@ -24,24 +24,27 @@ describe('Testing transport', function () {
     it('should add to the buffer', function () {
       transport.count('testing')
       assert.deepEqual(transport.buffer, {
-        gauges: { },
+        project: null,
+        timings: { },
         counters: { 'testing': 1 }
       })
       transport.count('testing')
       assert.deepEqual(transport.buffer, {
-        gauges: { },
+        project: null,
+        timings: { },
         counters: { 'testing': 2 }
       })
       transport.count('foobar')
       assert.deepEqual(transport.buffer, {
-        gauges: { },
+        project: null,
+        timings: { },
         counters: { 'foobar': 1, 'testing': 2 }
       })
       assert.equal(transport._triggerFlushBuffer.callCount, 3)
     })
   })
 
-  describe('gauge', function () {
+  describe('timing', function () {
     beforeEach(function () {
       sinon.stub(transport, '_triggerFlushBuffer')
     })
@@ -49,19 +52,22 @@ describe('Testing transport', function () {
       transport._triggerFlushBuffer.restore()
     })
     it('should add to the buffer', function () {
-      transport.gauge('testing', 1)
+      transport.timing('testing', 1)
       assert.deepEqual(transport.buffer, {
-        gauges: { 'testing': [ 1 ] },
+        project: null,
+        timings: { 'testing': [ 1 ] },
         counters: { }
       })
-      transport.gauge('testing', 2)
+      transport.timing('testing', 2)
       assert.deepEqual(transport.buffer, {
-        gauges: { 'testing': [ 1, 2 ] },
+        project: null,
+        timings: { 'testing': [ 1, 2 ] },
         counters: { }
       })
-      transport.gauge('foobar', 3)
+      transport.timing('foobar', 3)
       assert.deepEqual(transport.buffer, {
-        gauges: { 'testing': [ 1, 2 ], 'foobar': [ 3 ] },
+        project: null,
+        timings: { 'testing': [ 1, 2 ], 'foobar': [ 3 ] },
         counters: { }
       })
       assert.equal(transport._triggerFlushBuffer.callCount, 3)
