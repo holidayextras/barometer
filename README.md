@@ -133,7 +133,7 @@ The `metrics` property controls which metrics should be gathered. Possible optio
 1. [barometer](https://github.com/holidayextras/barometer) - client-side metric gathering tool
 2. A DIY service to receive and expand metrics, and provide application security.
 3. [Prometheus](https://prometheus.io) - A systems monitoring and alerting toolkit.
-5. [Grafana](http://grafana.org/) - A tool for querying and visualizing time series and metrics.
+4. [Grafana](http://grafana.org/) - A tool for querying and visualizing time series and metrics.
 
 ### How do the metrics relate to one another?
 
