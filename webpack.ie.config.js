@@ -1,12 +1,13 @@
 var webpack = require('webpack')
 var barometer = require('./package.json')
+var path = require('path')
 
 module.exports = {
   entry: [
     './lib/barometer.js'
   ],
   output: {
-    path: './dist',
+    path: path.join(__dirname, '/dist'),
     filename: 'barometer.ie.min.js'
   },
   plugins: [

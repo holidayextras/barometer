@@ -1,6 +1,6 @@
 # barometer
 
-barometer is a very small `2.4KB` script that will automatically generate browser-side performance metrics and forward them in an efficient manner to a collection service.
+barometer is a very small `3.1KB` script that will automatically generate prometheus-style browser-side performance metrics and forward them in an efficient manner to a collection service.
 
 ![https://saucelabs.com/browser-matrix/theninj4.svg](https://saucelabs.com/browser-matrix/theninj4.svg)
 
@@ -13,6 +13,7 @@ Every website monitoring tool I've seen that is said to work with single page ap
 1. Grab the script in `/dist/barometer.min.js`.
 2. Embed the script in the `<head>` of your webpage, before everything else.
 3. Attach the url of your collector service to `window.barometer.url`.
+4. Attach the name of your client side project to `window.barometer.project`.
 
 ```html
 <!DOCTYPE html>
@@ -20,6 +21,7 @@ Every website monitoring tool I've seen that is said to work with single page ap
     <meta charset="utf-8">
     <script type="text/javascript">--PASTE-SCRIPT-HERE--</script>
     <script type="text/javascript">window.barometer.url='https://foobar'</script>
+    <script type="text/javascript">window.barometer.project='project-name'</script>
     ...
 ```
 
@@ -35,16 +37,16 @@ If you want to see the generated metrics in your console, you can set `window.ba
 
 ### Metric Payload
 
-Metrics are gathered in the format used by a statsd / graphite / grafana stack - there are two types, gauges and counters. The buffered metric payloads sent to the collection service of your choosing look like this:
+Metrics are gathered in the format used by a prometheus stack - there are two types, timings and counters. The buffered metric payloads sent to the collection service of your choosing look like this:
 ```javascript
 // Content-Type: application/json
 {
-  "gauges": {
-    "foo.bar.baz": [ 123 ],
-    "foo.bar.boo": [ 123 , 456 ]
+  "project": "project-name",
+  "timings": {
+    "client_xhr_seconds{label=\"value\"}": [ 123 ],
   },
   "counters": {
-    "foo.bar.baz": [ 5 ]
+    "client_xhr_events{label=\"value\"}": [ 5 ]
   }
 }
 ```
@@ -88,6 +90,7 @@ This module exposes a mechanism for other pieces of Javascript to generate metri
 ```javascript
 window.barometer = {
   url: null,
+  project: null,
   debug: null,
   count: function (metric) { },
   gauge: function (metric, value) { },
@@ -129,9 +132,8 @@ The `metrics` property controls which metrics should be gathered. Possible optio
 
 1. [barometer](https://github.com/holidayextras/barometer) - client-side metric gathering tool
 2. A DIY service to receive and expand metrics, and provide application security.
-3. [statsd](https://github.com/etsy/statsd) - A network daemon for statistic aggregation
-4. [Graphite](https://graphiteapp.org/#gettingStarted) - An enterprise-ready monitoring tool
-5. [Grafana](http://grafana.org/) - A tool for querying and visualizing time series and metrics
+3. [Prometheus](https://prometheus.io) - A systems monitoring and alerting toolkit.
+4. [Grafana](http://grafana.org/) - A tool for querying and visualizing time series and metrics.
 
 ### How do the metrics relate to one another?
 

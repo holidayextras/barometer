@@ -1,13 +1,14 @@
 var webpack = require('webpack')
 var JSCrush = require('webpack-jscrush')
 var barometer = require('./package.json')
+var path = require('path')
 
 module.exports = {
   entry: [
     './lib/barometer.js'
   ],
   output: {
-    path: './dist',
+    path: path.join(__dirname, '/dist'),
     filename: 'barometer.min.js'
   },
   plugins: [

@@ -7,7 +7,7 @@ var transport = require('../lib/transport.js')
 
 describe('Testing xhrStats', function () {
   before(function () {
-    sinon.stub(transport, 'gauge')
+    sinon.stub(transport, 'timing')
     sinon.stub(transport, 'count')
     window.clock = sinon.useFakeTimers()
     var xhr = new window.XMLHttpRequest()
@@ -16,18 +16,18 @@ describe('Testing xhrStats', function () {
     window.clock.tick(1)
   })
   after(function () {
-    transport.gauge.restore()
+    transport.timing.restore()
     transport.count.restore()
     window.clock.restore()
   })
 
   it('should measure XHR timings', function () {
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.processed', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.unsent', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.opened', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.headers_received', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.timing.post.www_example_com.foo.loading', 0)
-    sinon.assert.calledWith(transport.gauge, 'xhr.size.post.www_example_com.foo.200', 11)
-    sinon.assert.calledWith(transport.count, 'xhr.responses.post.www_example_com.foo.200')
+    sinon.assert.calledWith(transport.timing, 'client_xhr_seconds{method="post",host="www.example.com",path="foo",tag="processed"}', 0)
+    sinon.assert.calledWith(transport.timing, 'client_xhr_seconds{method="post",host="www.example.com",path="foo",tag="unsent"}', 0)
+    sinon.assert.calledWith(transport.timing, 'client_xhr_seconds{method="post",host="www.example.com",path="foo",tag="opened"}', 0)
+    sinon.assert.calledWith(transport.timing, 'client_xhr_seconds{method="post",host="www.example.com",path="foo",tag="headers_received"}', 0)
+    sinon.assert.calledWith(transport.timing, 'client_xhr_seconds{method="post",host="www.example.com",path="foo",tag="loading"}', 0)
+    sinon.assert.calledWith(transport.timing, 'client_xhr_response_bytes{method="post",host="www.example.com",path="foo",httpCode="200"}', 11)
+    sinon.assert.calledWith(transport.count, 'client_xhr_response_events{method="post",host="www.example.com",path="foo",httpCode="200"}')
   })
 })

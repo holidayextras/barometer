@@ -7,19 +7,19 @@ var transport = require('../lib/transport.js')
 
 describe('Testing measures', function () {
   before(function (done) {
-    sinon.stub(transport, 'gauge')
+    sinon.stub(transport, 'timing')
     window.clock = sinon.useFakeTimers()
     window.barometer.pageStartedAt = new Date()
     window.clock.setSystemTime((new Date()).getTime() + 100)
     done()
   })
   after(function () {
-    transport.gauge.restore()
+    transport.timing.restore()
     window.clock.restore()
   })
 
   it('should measure times offset from page change start', function () {
     measures.offset('xxxxx')
-    sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.xxxxx', 100)
+    sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html",measure="xxxxx"}', 100)
   })
 })

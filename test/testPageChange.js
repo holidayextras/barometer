@@ -11,7 +11,7 @@ describe('Testing pageChange', function () {
   var onPageLoadedCounter = 0
   before(function (done) {
     var i
-    sinon.stub(transport, 'gauge')
+    sinon.stub(transport, 'timing')
     sinon.stub(transport, 'count')
     window.barometer.onPageChanged(function () {
       pageChangedFired = true
@@ -27,14 +27,14 @@ describe('Testing pageChange', function () {
     done()
   })
   after(function () {
-    transport.gauge.restore()
+    transport.timing.restore()
     transport.count.restore()
     window.clock.restore()
   })
 
   it('should measure load times', function () {
-    sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.dynamic', 750)
-    sinon.assert.calledWith(transport.count, 'pageload.localhost_9876.context_html.visits')
+    sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html",measure="dynamic"}', 750)
+    sinon.assert.calledWith(transport.count, 'client_pageload_event{host="localhost:9876",path="context.html",measure="visits"}')
     assert.equal(pageChangedFired, true, 'onPageChanged event should have been triggered')
     assert.equal(onPageLoadedCounter, 1, 'onPageLoaded event should have been triggered')
   })
@@ -42,7 +42,7 @@ describe('Testing pageChange', function () {
   it('should measure engagement', function () {
     window.clock.tick(100)
     window.trigger('popstate')
-    sinon.assert.calledWith(transport.gauge, 'pageload.localhost_9876.context_html.engagement', 325)
+    sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html",measure="engagement"}', 325)
     assert.equal(onPageLoadedCounter, 1, 'onPageLoaded event should NOT have been triggered')
   })
 })
