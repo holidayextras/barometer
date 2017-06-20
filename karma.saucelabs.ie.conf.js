@@ -4,10 +4,16 @@ var customLaunchers = {
   win7ie8: {
     base: 'SauceLabs',
     browserName: 'internet explorer',
+    platform: 'Windows 7',
+    version: '8.0'
+  },
+  winXPie8: {
+    base: 'SauceLabs',
+    browserName: 'internet explorer',
     platform: 'Windows XP',
     version: '8.0'
   },
-  win7ie7: {
+  winXPie7: {
     base: 'SauceLabs',
     browserName: 'internet explorer',
     platform: 'Windows XP',

@@ -9,7 +9,7 @@
     "coverage": "mocha --require blanket --reporter html-cov ./test/test*.js > coverage.html",
     "lint": "eslint ./lib/*.js ./test/*.js",
     "pretest": "npm run build:test",
-    "test": "npm run test:unit && npm run test:karma && npm run test:sauce && npm run test:ie",
+    "test": "npm run test:ie",
     "pretest:karma": "npm run build:test",
     "test:karma": "karma start ./karma.local.conf.js",
     "pretest:sauce": "npm run build:test",
