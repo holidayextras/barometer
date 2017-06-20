@@ -8,7 +8,7 @@
     "build:test": "browserify test/_fakeDom.js test/*.js -o dist/barometer-test.js",
     "coverage": "mocha --require blanket --reporter html-cov ./test/test*.js > coverage.html",
     "lint": "eslint ./lib/*.js ./test/*.js",
-    "pretest": "npm run build:test",
+    "pretest": "npm run build && npm run build:test",
     "test": "npm run test:ie",
     "pretest:karma": "npm run build:test",
     "test:karma": "karma start ./karma.local.conf.js",
