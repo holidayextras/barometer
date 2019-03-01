@@ -38,6 +38,6 @@ describe('Testing pageLoadStats', function () {
     sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html",measure="loadEventStart"}', 19)
     sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html",measure="loadEventEnd"}', 20)
     sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html",measure="timeToFirstScript"}', 5)
-    assert.equal(transport.timing.callCount, 21)
+    assert.equal(transport.timing.callCount, 22)
   })
 })
