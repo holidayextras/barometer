@@ -6,11 +6,6 @@ var customLaunchers = {
     browserName: 'chrome',
     platform: 'Windows 10'
   },
-  androidChrome: {
-    base: 'SauceLabs',
-    browserName: 'android',
-    platform: 'Linux'
-  },
   win10firefox: {
     base: 'SauceLabs',
     browserName: 'firefox',
@@ -24,7 +19,7 @@ var customLaunchers = {
   iosSafari: {
     base: 'SauceLabs',
     browserName: 'iphone',
-    platform: 'OS X 10.10'
+    platform: 'OS X 12.00'
   },
   iosSafari92: {
     base: 'SauceLabs',
