@@ -1,6 +1,16 @@
 'use strict'
 
 var customLaunchers = {
+  win10chrome: {
+    base: 'SauceLabs',
+    browserName: 'chrome',
+    platform: 'Windows 10'
+  },
+  win10firefox: {
+    base: 'SauceLabs',
+    browserName: 'firefox',
+    platform: 'Windows 10'
+  },
   osxSafari: {
     base: 'SauceLabs',
     browserName: 'safari',
@@ -10,6 +20,16 @@ var customLaunchers = {
     base: 'SauceLabs',
     browserName: 'iphone',
     platform: 'OS X 12.1.4'
+  },
+  win10edge: {
+    base: 'SauceLabs',
+    browserName: 'MicrosoftEdge',
+    platform: 'Windows 10'
+  },
+  win10ie11: {
+    base: 'SauceLabs',
+    browserName: 'internet explorer',
+    platform: 'Windows 10'
   }
 }
 
