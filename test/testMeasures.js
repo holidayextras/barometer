@@ -20,6 +20,6 @@ describe('Testing measures', function () {
 
   it('should measure times offset from page change start', function () {
     measures.offset('xxxxx')
-    sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html",measure="xxxxx"}', 100)
+    sinon.assert.calledWith(transport.timing, 'client_pageload_seconds{host="localhost:9876",path="context.html/",measure="xxxxx"}', 100)
   })
 })

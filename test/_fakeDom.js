@@ -19,7 +19,7 @@ if (!window.location) {
   window.location = {
     host: 'localhost:9876',
     href: 'localhost:9876',
-    hash: '/context.html?foo=bar'
+    hash: '/context.html/?foo=bar'
   }
 }
 
