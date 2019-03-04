@@ -30,12 +30,6 @@ var customLaunchers = {
     base: 'SauceLabs',
     browserName: 'internet explorer',
     platform: 'Windows 10'
-  },
-  win7ie9: {
-    base: 'SauceLabs',
-    browserName: 'internet explorer',
-    platform: 'Windows 7',
-    version: '9.0'
   }
 }
 
