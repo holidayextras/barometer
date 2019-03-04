@@ -14,12 +14,12 @@ var customLaunchers = {
   osxSafari: {
     base: 'SauceLabs',
     browserName: 'safari',
-    platform: 'OS X 12.00'
+    platform: 'OS X 12'
   },
   iosSafari: {
     base: 'SauceLabs',
     browserName: 'iphone',
-    platform: 'OS X 12.00'
+    platform: 'OS X 12'
   },
   win10edge: {
     base: 'SauceLabs',
