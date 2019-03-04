@@ -1,16 +1,6 @@
 'use strict'
 
 var customLaunchers = {
-  win10chrome: {
-    base: 'SauceLabs',
-    browserName: 'chrome',
-    platform: 'Windows 10'
-  },
-  win10firefox: {
-    base: 'SauceLabs',
-    browserName: 'firefox',
-    platform: 'Windows 10'
-  },
   osxSafari: {
     base: 'SauceLabs',
     browserName: 'safari',
