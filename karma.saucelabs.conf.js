@@ -20,16 +20,6 @@ var customLaunchers = {
     base: 'SauceLabs',
     browserName: 'iphone',
     platform: 'OS X 12.1.4'
-  },
-  win10edge: {
-    base: 'SauceLabs',
-    browserName: 'MicrosoftEdge',
-    platform: 'Windows 10'
-  },
-  win10ie11: {
-    base: 'SauceLabs',
-    browserName: 'internet explorer',
-    platform: 'Windows 10'
   }
 }
 
