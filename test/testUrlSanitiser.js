@@ -14,7 +14,7 @@ describe('Testing urlSanitiser', function () {
     var href = 'http://www.example.com/foo?test=1'
     var hash = '#something'
     var result = urlSanitiser(href, hash)
-    assert.deepEqual(result, [ 'www.example.com', 'foo' ])
+    assert.deepEqual(result, [ 'www.example.com', 'foo/something' ])
   })
 
   it('joins paths in the hash', function () {

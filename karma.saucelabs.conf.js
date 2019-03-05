@@ -6,11 +6,6 @@ var customLaunchers = {
     browserName: 'chrome',
     platform: 'Windows 10'
   },
-  androidChrome: {
-    base: 'SauceLabs',
-    browserName: 'android',
-    platform: 'Linux'
-  },
   win10firefox: {
     base: 'SauceLabs',
     browserName: 'firefox',
@@ -19,18 +14,12 @@ var customLaunchers = {
   osxSafari: {
     base: 'SauceLabs',
     browserName: 'safari',
-    platform: 'OS X 10.11'
+    platform: 'OS X 10.13'
   },
   iosSafari: {
     base: 'SauceLabs',
     browserName: 'iphone',
-    platform: 'OS X 10.10'
-  },
-  iosSafari92: {
-    base: 'SauceLabs',
-    browserName: 'iphone',
-    platform: 'OS X 10.10',
-    version: '9.2'
+    platform: 'OS X 12.1.4'
   },
   win10edge: {
     base: 'SauceLabs',
@@ -41,12 +30,6 @@ var customLaunchers = {
     base: 'SauceLabs',
     browserName: 'internet explorer',
     platform: 'Windows 10'
-  },
-  win7ie9: {
-    base: 'SauceLabs',
-    browserName: 'internet explorer',
-    platform: 'Windows 7',
-    version: '9.0'
   }
 }
 
